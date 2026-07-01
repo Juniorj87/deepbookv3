@@ -86,7 +86,7 @@ export default function Metrics() {
         <div className="card">
           <div className="card-title">Total Rewards</div>
           <div className="stat-value" style={{ color: 'var(--green)' }}>
-            {(positions.totalPnl / 1e6).toFixed(2)}M DEEP
+            {(positions.totalPnl / 1e6).toLocaleString('en-US', { maximumFractionDigits: 0 })} DEEP
           </div>
           <div className="stat-label">{positions.claimed} claimed positions</div>
         </div>

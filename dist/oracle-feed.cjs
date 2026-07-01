@@ -31063,7 +31063,7 @@ async function runUnifiedService() {
                   managerId: MANAGER_ID,
                   quoteAsset: DUSDC_TYPE,
                   marketKey: { expiry: BigInt(expiry), isUp, strike },
-                  quantity: 100000n
+                  quantity: 300000000n
                 });
               }
               if (tradingEnabled) {
@@ -31090,7 +31090,7 @@ async function runUnifiedService() {
                   for (const s of strikes) {
                     const pid = `${oracleId}_${s}_${trackDir}_${expiry}`;
                     if (!validation.positions.find((p) => p.positionId === pid)) {
-                      predictClient.mint(tx, { managerId: MANAGER_ID, oracleId: oracleRef, marketKey: { oracleId, expiry: BigInt(expiry), strike: s, isUp: mintIsUp }, quantity: 100000n, quoteAsset: DUSDC_TYPE });
+                      predictClient.mint(tx, { managerId: MANAGER_ID, oracleId: oracleRef, marketKey: { oracleId, expiry: BigInt(expiry), strike: s, isUp: mintIsUp }, quantity: 300000000n, quoteAsset: DUSDC_TYPE });
                       mintCount++;
                     }
                   }
@@ -31106,7 +31106,7 @@ async function runUnifiedService() {
                       const posId = `${oracleId}_${s}_${trackDir}_${expiry}`;
                       const existing = validation.positions.find((p) => p.positionId === posId);
                       if (!existing) {
-                        validation.positions.push({ positionId: posId, digest: result.digest, market: asset, oracleId, direction: trackDir, state: "OPEN", entryPrice: String(Math.round(Number(data.spot))), quantity: "100000", expiry, strike: s.toString(), createdAt: new Date().toISOString() });
+                        validation.positions.push({ positionId: posId, digest: result.digest, market: asset, oracleId, direction: trackDir, state: "OPEN", entryPrice: String(Math.round(Number(data.spot))), quantity: "300000000", expiry, strike: s.toString(), createdAt: new Date().toISOString() });
                       }
                     }
                     validation.saveState();

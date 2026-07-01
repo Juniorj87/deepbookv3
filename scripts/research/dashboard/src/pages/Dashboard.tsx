@@ -123,7 +123,7 @@ export default function Dashboard() {
         />
         <Card
           title="Total Rewards (DEEP)"
-          value={(positions.totalPnl / 1e6).toFixed(2) + 'M'}
+          value={(positions.totalPnl / 1e6).toLocaleString('en-US', { maximumFractionDigits: 0 })}
           sub={`${positions.claimed} claimed positions`}
           color="var(--green)"
         />
