@@ -85,11 +85,11 @@ export function getHourlyMetrics(hours = 24) {
 
   return db.prepare(`
     SELECT
-      strftime('%Y-%m-%dT%H:00:00Z', created_at) as hour,
+      strftime('%Y-%m-%dT%H:00:00Z', timestamp) as hour,
       COUNT(*) as predictions,
       AVG(confidence) as avg_confidence
     FROM predictions
-    WHERE created_at > ?
+    WHERE timestamp > ?
     GROUP BY hour
     ORDER BY hour
   `).all(since);

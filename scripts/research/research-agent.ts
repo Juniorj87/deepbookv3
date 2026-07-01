@@ -93,7 +93,7 @@ export function logSettlement(params: {
 export function getRecentPredictions(limit = 50) {
   const db = getDb();
   return db.prepare(`
-    SELECT * FROM predictions ORDER BY created_at DESC LIMIT ?
+    SELECT * FROM predictions ORDER BY timestamp DESC, id DESC LIMIT ?
   `).all(limit);
 }
 
