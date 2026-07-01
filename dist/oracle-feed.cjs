@@ -31238,6 +31238,17 @@ async function runUnifiedService() {
             const settleRes = await client.signAndExecuteTransaction({ transaction: settleTx, signer });
             await client.waitForTransaction({ digest: settleRes.digest });
             console.log(`[SETTLEMENT] Settlement TX: ${settleRes.digest}`);
+            logPredictionToResearch({
+              market: asset,
+              oracleId: oracleId,
+              direction: "SETTLE",
+              strike: 0,
+              confidence: 0,
+              signals: {},
+              explanation: `SETTLEMENT push for expired oracle, digest=${settleRes.digest}`,
+              txDigest: settleRes.digest,
+              status: "settled",
+            });
           }
         } catch (e) {
           console.error(`[SETTLEMENT] Failed to settle oracle ${oracleId.slice(0, 20)}:`, e.message);
@@ -31271,17 +31282,51 @@ async function runUnifiedService() {
           await client.waitForTransaction({ digest: res.digest });
           await validation.markClaimed(pos.positionId, res.digest, 100000n);
           await alertSystem.notify({ severity: "INFO" /* INFO */, message: `Claimed profit for ${pos.direction} position`, digest: res.digest });
+          // Log settlement to Research Platform
+          logPredictionToResearch({
+            market: pos.market || "UNKNOWN",
+            oracleId: pos.oracleId,
+            direction: pos.direction,
+            strike: parseInt(pos.strike || "0"),
+            confidence: 0,
+            signals: {},
+            explanation: `SETTLE: claim success, digest=${res.digest}`,
+            txDigest: res.digest,
+            status: "claimed",
+          });
         } catch (e) {
           const msg = (e.message || "") + " " + (e.stack || "");
           if (msg.includes("decrease_position") || msg.includes("abort code: 1") || msg.includes("EInsufficientPosition")) {
             await validation.markClaimed(pos.positionId, "already-claimed-onchain", pos.quantity);
             await alertSystem.notify({ severity: "INFO" /* INFO */, message: `Position already claimed on-chain, marking CLAIMED: ${pos.positionId.slice(0,20)}...` });
+            logPredictionToResearch({
+              market: pos.market || "UNKNOWN",
+              oracleId: pos.oracleId,
+              direction: pos.direction,
+              strike: parseInt(pos.strike || "0"),
+              confidence: 0,
+              signals: {},
+              explanation: `SETTLE: already claimed on-chain`,
+              txDigest: "already-claimed-onchain",
+              status: "claimed",
+            });
           } else {
             if (!pos.claimAttempts) pos.claimAttempts = 0;
             pos.claimAttempts++;
             if (pos.claimAttempts >= 3) {
               pos.state = PositionState.FAILED;
               await alertSystem.notify({ severity: "WARNING" /* WARNING */, message: `Claim FAILED permanently (${pos.claimAttempts} attempts): ${pos.positionId.slice(0,20)}... — ${e.message}` });
+              logPredictionToResearch({
+                market: pos.market || "UNKNOWN",
+                oracleId: pos.oracleId,
+                direction: pos.direction,
+                strike: parseInt(pos.strike || "0"),
+                confidence: 0,
+                signals: {},
+                explanation: `SETTLE: claim FAILED after ${pos.claimAttempts} attempts: ${e.message}`,
+                txDigest: null,
+                status: "failed",
+              });
             } else {
               await alertSystem.notify({ severity: "WARNING" /* WARNING */, message: `Failed claim attempt ${pos.claimAttempts}/3: ${e.message}` });
             }
