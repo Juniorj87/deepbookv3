@@ -96,6 +96,7 @@ function aggregatePositions(positions: Position[]) {
         totalClaimed++;
         m.winners++;
         totalWinners++;
+        // Total rewards earned (DEEP). PnL needs DEEP/DUSDC rate which we don't have.
         if (p.rewardAmount) totalPnl += parseInt(p.rewardAmount);
         break;
       case 'FAILED':

@@ -122,10 +122,10 @@ export default function Dashboard() {
           sub={`${session.last1h.claimed} claimed | ${session.last1h.failed} failed`}
         />
         <Card
-          title="PnL (DEEP)"
-          value={positions.totalPnl > 0 ? '+' + (positions.totalPnl / 1e6).toFixed(2) + 'M' : '0'}
-          sub={`Avg age: ${positions.avgAgeHours}h`}
-          color={positions.totalPnl > 0 ? 'var(--green)' : 'var(--text-secondary)'}
+          title="Total Rewards (DEEP)"
+          value={(positions.totalPnl / 1e6).toFixed(2) + 'M'}
+          sub={`${positions.claimed} claimed positions`}
+          color="var(--green)"
         />
       </div>
 

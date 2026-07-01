@@ -84,11 +84,11 @@ export default function Metrics() {
           <div className="stat-label">{positions.winners}W / {positions.failed}L</div>
         </div>
         <div className="card">
-          <div className="card-title">Total PnL</div>
-          <div className="stat-value" style={{ color: positions.totalPnl > 0 ? 'var(--green)' : 'var(--red)' }}>
-            {positions.totalPnl > 0 ? '+' : ''}{(positions.totalPnl / 1e6).toFixed(2)}M DEEP
+          <div className="card-title">Total Rewards</div>
+          <div className="stat-value" style={{ color: 'var(--green)' }}>
+            {(positions.totalPnl / 1e6).toFixed(2)}M DEEP
           </div>
-          <div className="stat-label">{positions.total} positions</div>
+          <div className="stat-label">{positions.claimed} claimed positions</div>
         </div>
         <div className="card">
           <div className="card-title">Velocity</div>
