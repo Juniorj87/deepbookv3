@@ -30483,11 +30483,13 @@ async function fetchOracleGrid(client, predictId, oracleId) {
   try {
     const predictObj = await getFreshObject(client, predictId);
     const tableId = predictObj.data?.content?.fields?.oracle_config?.fields?.oracle_grids?.fields?.id?.id;
-    if (!tableId) return null;
+    if (!tableId) { console.log(`[GRID] No tableId for ${oracleId.slice(0, 12)}`); return null; }
+    console.log(`[GRID] Looking up ${oracleId.slice(0, 12)} in table ${tableId.slice(0, 12)}...`);
     const resp = await client.getDynamicFieldObject({
       parentId: tableId,
       name: { type: "0x2::object::ID", value: oracleId }
     });
+    console.log(`[GRID] Response exists: ${resp.data !== null}, hasError: ${resp.error !== undefined}`);
     const val = resp.data?.content?.fields?.value?.fields;
     if (val) {
       gridCache[oracleId] = {
@@ -30495,7 +30497,10 @@ async function fetchOracleGrid(client, predictId, oracleId) {
         tickSize: BigInt(val.tick_size?.toString() || "1"),
         maxStrike: BigInt(val.max_strike?.toString() || "18446744073709551615")
       };
+      console.log(`[GRID] ${oracleId.slice(0, 12)}: min=${gridCache[oracleId].minStrike} tick=${gridCache[oracleId].tickSize} max=${gridCache[oracleId].maxStrike}`);
       return gridCache[oracleId];
+    } else {
+      console.log(`[GRID] No grid found for ${oracleId.slice(0, 12)}`);
     }
   } catch (e) {
     console.error(`[GRID] Failed to fetch grid for ${oracleId.slice(0, 12)}:`, e.message);
@@ -31083,8 +31088,10 @@ async function runUnifiedService() {
                   const mintGrid = await fetchOracleGrid(client, PREDICT_ID, oracleId);
                   const mintTick = mintGrid ? mintGrid.tickSize : ({ BTC: 1000000000000n, ETH: 50000000000n, DEEP: 1000000n }[asset] || 1000000000000n);
                   const mintMinS = mintGrid ? mintGrid.minStrike : ({ BTC: 60000000000000n, ETH: 1000000000000n, DEEP: 5000000n }[asset] || 60000000000000n);
+                  const mintMaxS = mintGrid ? mintGrid.maxStrike : ({ BTC: 200000000000000n, ETH: 2000000000000n, DEEP: 50000000n }[asset] || 200000000000000n);
                   const mintStrike = mintSpotRaw < mintMinS ? mintMinS : mintMinS + ((mintSpotRaw - mintMinS + (mintTick / 2n)) / mintTick) * mintTick;
-                  const strikes = [mintStrike - mintTick, mintStrike, mintStrike + mintTick].filter(s => s >= mintMinS);
+                  const cappedStrike = mintStrike > mintMaxS ? mintMaxS - mintTick : mintStrike;
+                  const strikes = [cappedStrike - mintTick, cappedStrike, cappedStrike + mintTick].filter(s => s >= mintMinS && s <= mintMaxS);
                   const trackDir = sigDir || (mintIsUp ? "UP" : "DOWN");
                   let mintCount = 0;
                   for (const s of strikes) {
