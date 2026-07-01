@@ -1,0 +1,21 @@
+{
+  "name": "deepbook-research",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "tsx index.ts",
+    "dev": "tsx watch index.ts",
+    "build-dashboard": "cd dashboard && npm run build"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "tsx": "^4.19.0"
+  }
+}
