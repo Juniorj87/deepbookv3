@@ -1,0 +1,17 @@
+{
+  "cycle": 1,
+  "lastUpdate": "2026-06-18T14:51:02.283Z",
+  "metrics": {
+    "total": 0,
+    "open": 0,
+    "settled": 0,
+    "claimable": 0,
+    "claimed": 0,
+    "successRate": "0.00%"
+  },
+  "balances": {
+    "sui": "68.73",
+    "deep": "0.00",
+    "dusdc": "0.00"
+  }
+}

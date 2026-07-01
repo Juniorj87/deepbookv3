@@ -1,0 +1,6 @@
+*.db
+*.db-shm
+*.db-wal
+live-metrics.json
+metrics.json
+node_modules/
