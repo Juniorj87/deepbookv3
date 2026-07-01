@@ -50,7 +50,7 @@ export default function Research() {
       <h1 className="page-title">Research — Prediction Reasoning</h1>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {['all', 'confirmed', 'claimed', 'pending', 'failed'].map(s => (
+        {['all', 'claimed', 'open', 'settled', 'failed'].map(s => (
           <button
             key={s}
             onClick={() => setFilter(s)}

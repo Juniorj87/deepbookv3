@@ -108,6 +108,9 @@ function aggregatePositions(positions: Position[]) {
 
   for (const m of Object.values(byMarket)) {
     m.avgAge = m.open > 0 ? ages.reduce((a, b) => a + b, 0) / ages.length : 0;
+    // Recalculate per-market win rate: claimed / total
+    m.winners = m.claimed;
+    m.losers = m.total - m.claimed - m.open;
   }
 
   return {
@@ -117,7 +120,7 @@ function aggregatePositions(positions: Position[]) {
     failed: totalFailed,
     winners: totalWinners,
     losers: totalFailed,
-    winRate: totalClaimed > 0 ? ((totalWinners / totalClaimed) * 100).toFixed(1) : '0',
+    winRate: positions.length > 0 ? ((totalClaimed / positions.length) * 100).toFixed(1) : '0',
     totalPnl,
     avgAgeHours: ages.length > 0 ? (ages.reduce((a, b) => a + b, 0) / ages.length / 3600000).toFixed(1) : '0',
     byMarket,
