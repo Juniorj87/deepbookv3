@@ -6,12 +6,14 @@ module deepbook_margin::pool_proxy_tests;
 
 use deepbook::{constants, pool::Pool, registry::Registry};
 use deepbook_margin::{
+    margin_constants,
     margin_manager::{Self, MarginManager},
     margin_pool::{Self, MarginPool},
     margin_registry::{Self, MarginRegistry},
     pool_proxy,
     test_constants::{Self, USDC, USDT},
     test_helpers::{
+        Self,
         setup_pool_proxy_test_env,
         setup_margin_registry,
         create_margin_pool,
@@ -43,8 +45,8 @@ fun test_place_limit_order_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -80,21 +82,33 @@ fun test_place_limit_order_ok() {
 
     // Place a limit order successfully
     // Price must be within 5% of oracle price (1_000_000_000 for USDC/USDT at $1 each)
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        1, // client_order_id
+        1,
+        // client_order_id
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals, within 5% of oracle price)
-        100 * test_constants::usdc_multiplier(), // quantity
-        false, // is_bid (sell USDC for USDT)
-        false, // pay_with_deep
-        2000000, // expire_timestamp
+        1_000_000_000,
+        // price (1.0 in 9 decimals, within 5% of oracle price)
+        100 * test_constants::usdc_multiplier(),
+        // quantity
+        false,
+        // is_bid (sell USDC for USDT)
+        false,
+        // pay_with_deep
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     // Verify the order was placed (basic sanity check)
     destroy(order_info);
@@ -110,8 +124,8 @@ fun test_place_limit_order_incorrect_pool() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -137,10 +151,16 @@ fun test_place_limit_order_incorrect_pool() {
     let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
 
     // Try to place order with wrong pool - should fail
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
-        &mut wrong_pool, // Wrong pool!
+        &mut wrong_pool,
+        // Wrong pool!
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
@@ -150,8 +170,9 @@ fun test_place_limit_order_incorrect_pool() {
         false,
         0,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -161,8 +182,18 @@ fun test_place_limit_order_pool_not_enabled() {
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
     // Create a margin pool
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     // Create a pool that is NOT enabled for margin trading
     let (non_margin_pool_id, _non_margin_registry_id) = create_pool_for_testing<USDC, USDT>(
@@ -214,8 +245,13 @@ fun test_place_limit_order_pool_not_enabled() {
     destroy_2!(usdc_price, usdt_price);
 
     // Try to place order with non-enabled pool - should fail
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut non_margin_pool,
         1,
@@ -227,8 +263,9 @@ fun test_place_limit_order_pool_not_enabled() {
         false,
         2000000,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -241,8 +278,8 @@ fun test_place_market_order_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -279,18 +316,28 @@ fun test_place_market_order_ok() {
     destroy_2!(usdc_price, usdt_price);
 
     // Sell USDC (is_bid=false) since we deposited USDC
-    let order_info = pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        2, // client_order_id
+        2,
+        // client_order_id
         constants::self_matching_allowed(),
-        100 * test_constants::usdc_multiplier(), // quantity
-        false, // is_bid = false (sell USDC)
-        false, // pay_with_deep
+        100 * test_constants::usdc_multiplier(),
+        // quantity
+        false,
+        // is_bid = false (sell USDC)
+        false,
+        // pay_with_deep
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     destroy(order_info);
     return_shared_2!(mm, pool);
@@ -304,8 +351,8 @@ fun test_place_market_order_incorrect_pool() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -329,18 +376,25 @@ fun test_place_market_order_incorrect_pool() {
     scenario.next_tx(test_constants::user1());
     let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
 
-    pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
-        &mut wrong_pool, // Wrong pool!
+        &mut wrong_pool,
+        // Wrong pool!
         2,
         constants::self_matching_allowed(),
         100,
         true,
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -349,8 +403,18 @@ fun test_place_market_order_incorrect_pool() {
 fun test_place_market_order_pool_not_enabled() {
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (non_margin_pool_id, _non_margin_registry_id) = create_pool_for_testing<USDC, USDT>(
         &mut scenario,
@@ -397,8 +461,13 @@ fun test_place_market_order_pool_not_enabled() {
     );
     destroy_2!(usdc_price, usdt_price);
 
-    pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut non_margin_pool,
         2,
@@ -407,8 +476,9 @@ fun test_place_market_order_pool_not_enabled() {
         false,
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -488,21 +558,27 @@ fun test_place_reduce_only_limit_order_ok() {
 
     // Now place a reduce-only limit order to buy USDC (reducing the debt)
     // Price must be within 5% of oracle price (1_000_000_000 for USDC/USDT at $1 each)
-    let order_info = pool_proxy::place_reduce_only_limit_order<USDC, USDT, USDC>(
+    let order_info = test_helpers::place_reduce_only_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &base_pool, // Pass base_pool since we have USDC debt
+        // Pass base_pool since we have USDC debt
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals, within 5% of oracle price)
-        100 * test_constants::usdc_multiplier(), // quantity (less than debt)
-        true, // is_bid = true (buying USDC to reduce debt)
+        1_000_000_000,
+        // price (1.0 in 9 decimals, within 5% of oracle price)
+        100 * test_constants::usdc_multiplier(),
+        // quantity (less than debt)
+        true,
+        // is_bid = true (buying USDC to reduce debt)
         false,
-        2000000, // expire_timestamp
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
 
     // Verify the order was placed successfully
@@ -585,21 +661,25 @@ fun test_place_reduce_only_limit_order_ok_ask() {
     destroy(withdrawn_coin);
 
     // Now place a reduce-only limit order to sell USDC for USDT (reducing the quote debt)
-    let order_info = pool_proxy::place_reduce_only_limit_order<USDC, USDT, USDT>(
+    let order_info = test_helpers::place_reduce_only_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &quote_pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals)
-        100 * test_constants::usdc_multiplier(), // quantity (selling 100 USDC to get ~100 USDT, less than 300 debt)
-        false, // is_bid = false (selling USDC to get USDT)
+        1_000_000_000,
+        // price (1.0 in 9 decimals)
+        100 * test_constants::usdc_multiplier(),
+        // quantity (selling 100 USDC to get ~100 USDT, less than 300 debt)
+        false,
+        // is_bid = false (selling USDC to get USDT)
         false,
         2000000,
         &clock,
-        scenario.ctx(),
     );
 
     destroy(order_info);
@@ -617,7 +697,7 @@ fun test_place_reduce_only_limit_order_incorrect_pool() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
+        base_pool_id,
         quote_pool_id,
         pool_id,
         registry_id,
@@ -643,12 +723,15 @@ fun test_place_reduce_only_limit_order_incorrect_pool() {
 
     scenario.next_tx(test_constants::user1());
     let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
 
-    pool_proxy::place_reduce_only_limit_order<USDC, USDT, USDT>(
+    test_helpers::place_reduce_only_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
-        &mut mm,
-        &mut wrong_pool, // Wrong pool!
+        &base_pool,
         &quote_pool,
+        &mut mm,
+        &mut wrong_pool,
         3,
         constants::no_restriction(),
         constants::self_matching_allowed(),
@@ -658,7 +741,65 @@ fun test_place_reduce_only_limit_order_incorrect_pool() {
         false,
         0,
         &clock,
+    );
+
+    abort
+}
+
+// Defense-in-depth: passing a margin pool whose id is not registered against
+// the manager must abort in `calculate_debts` with EIncorrectMarginPool. The
+// only constructable "wrong pool" scenario in tests is a manager with no debt
+// at all (the registry enforces one MarginPool<Asset> per asset type, so a
+// debt-side mismatch cannot be wired up). The v2 entry dispatches to
+// `calculate_debts(quote_margin_pool, ...)` when `has_base_debt` is false,
+// and the registered margin_pool_id is None, so the contains-check fails.
+#[test, expected_failure(abort_code = margin_manager::EIncorrectMarginPool)]
+fun test_place_reduce_only_limit_order_v2_unregistered_pool() {
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        base_pool_id,
+        quote_pool_id,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
         scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+
+    test_helpers::place_reduce_only_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
+        &registry,
+        &base_pool,
+        &quote_pool,
+        &mut mm,
+        &mut pool,
+        1,
+        constants::no_restriction(),
+        constants::self_matching_allowed(),
+        1_000_000_000,
+        100 * test_constants::usdc_multiplier(),
+        true,
+        false,
+        2000000,
+        &clock,
     );
 
     abort
@@ -671,7 +812,7 @@ fun test_place_reduce_only_limit_order_not_reduce_only() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
+        base_pool_id,
         quote_pool_id,
         pool_id,
         registry_id,
@@ -724,24 +865,32 @@ fun test_place_reduce_only_limit_order_not_reduce_only() {
     // User has no USDC debt but has USDT debt, tries to buy USDC (is_bid = true)
     // This should fail because it's not reducing any USDC position - user is increasing exposure
     // Price must be within 5% of oracle price (1_000_000_000 for USDC/USDT at $1 each)
-    pool_proxy::place_reduce_only_limit_order<USDC, USDT, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    test_helpers::place_reduce_only_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &quote_pool, // Pass quote_pool since we have USDT debt
+        // Pass quote_pool since we have USDT debt
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals, within 5% of oracle price)
-        100 * test_constants::usdc_multiplier(), // quantity
-        true, // is_bid = true (buying USDC)
+        1_000_000_000,
+        // price (1.0 in 9 decimals, within 5% of oracle price)
+        100 * test_constants::usdc_multiplier(),
+        // quantity
+        true,
+        // is_bid = true (buying USDC)
         false,
-        2000000, // expire_timestamp
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
 
     return_shared_3!(mm, pool, quote_pool);
+    return_shared(base_pool);
     destroy(usdc_price);
     destroy(usdt_price);
     cleanup_margin_test(registry, _admin_cap, _maintainer_cap, clock, scenario);
@@ -820,21 +969,27 @@ fun test_place_reduce_only_limit_order_not_reduce_only_quantity_bid() {
 
     // User has USDC debt, tries to buy more USDC than debt
     // This should fail because user is trying to buy more USDC than debt
-    pool_proxy::place_reduce_only_limit_order<USDC, USDT, USDC>(
+    test_helpers::place_reduce_only_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &base_pool, // Pass quote_pool since we have USDT debt
+        // Pass quote_pool since we have USDT debt
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        constants::float_scaling(), // price
-        101 * test_constants::usdc_multiplier(), // quantity
-        true, // is_bid = true (buying USDC)
+        constants::float_scaling(),
+        // price
+        101 * test_constants::usdc_multiplier(),
+        // quantity
+        true,
+        // is_bid = true (buying USDC)
         false,
-        2000000, // expire_timestamp
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
 
     return_shared_2!(mm, pool);
@@ -913,21 +1068,27 @@ fun test_place_reduce_only_limit_order_not_reduce_only_quantity_ask() {
 
     // User has USDC debt, tries to buy more USDC than debt
     // This should fail because user is trying to buy more USDC than debt
-    pool_proxy::place_reduce_only_limit_order<USDC, USDT, USDT>(
+    test_helpers::place_reduce_only_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &quote_pool, // Pass quote_pool since we have USDT debt
+        // Pass quote_pool since we have USDT debt
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        constants::float_scaling(), // price
-        101 * test_constants::usdc_multiplier(), // quantity
-        false, // is_bid = false (buying USDT)
+        constants::float_scaling(),
+        // price
+        101 * test_constants::usdc_multiplier(),
+        // quantity
         false,
-        2000000, // expire_timestamp
+        // is_bid = false (buying USDT)
+        false,
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
 
     return_shared_2!(mm, pool);
@@ -939,7 +1100,13 @@ fun test_place_reduce_only_limit_order_not_reduce_only_quantity_ask() {
 
 // === Place Reduce Only Market Order Tests ===
 
-#[test]
+// Reduce-only market BID against the standard orderbook (asks at $1.01) fills
+// 1% above oracle, leaving the manager's `risk_ratio` slightly worse than
+// before. The v2 monotonic-improvement invariant catches that and aborts —
+// reduce-only fills must monotonically improve (or hold) solvency. The
+// matching limit-order path (placed at exact oracle price) still passes its
+// `_ok` test above.
+#[test, expected_failure(abort_code = pool_proxy::EReduceOnlyMustImproveRiskRatio)]
 fun test_place_reduce_only_market_order_ok() {
     let (
         mut scenario,
@@ -1013,18 +1180,22 @@ fun test_place_reduce_only_market_order_ok() {
     destroy(withdrawn_coin);
 
     // Now place a reduce-only market order to buy USDC (reducing the debt)
-    let order_info = pool_proxy::place_reduce_only_market_order<USDC, USDT, USDC>(
+    let order_info = test_helpers::place_reduce_only_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &base_pool, // Pass base_pool since we have USDC debt
+        // Pass base_pool since we have USDC debt
         2,
         constants::self_matching_allowed(),
-        100 * test_constants::usdc_multiplier(), // quantity (less than debt)
-        true, // is_bid = true (buying USDC to reduce debt)
+        100 * test_constants::usdc_multiplier(),
+        // quantity (less than debt)
+        true,
+        // is_bid = true (buying USDC to reduce debt)
         false,
         &clock,
-        scenario.ctx(),
     );
 
     // Verify the order was placed successfully
@@ -1036,7 +1207,10 @@ fun test_place_reduce_only_market_order_ok() {
     cleanup_margin_test(registry, _admin_cap, _maintainer_cap, clock, scenario);
 }
 
-#[test]
+// Symmetric to `test_place_reduce_only_market_order_ok` — sell-side reduce-only
+// market hits bids at $0.99 (1% below oracle), degrading risk_ratio. Aborts on
+// the monotonic invariant.
+#[test, expected_failure(abort_code = pool_proxy::EReduceOnlyMustImproveRiskRatio)]
 fun test_place_reduce_only_market_order_ok_ask() {
     let (
         mut scenario,
@@ -1109,18 +1283,21 @@ fun test_place_reduce_only_market_order_ok_ask() {
     destroy(withdrawn_coin);
 
     // Now place a reduce-only market order to sell USDC for USDT (reducing the quote debt)
-    let order_info = pool_proxy::place_reduce_only_market_order<USDC, USDT, USDT>(
+    let order_info = test_helpers::place_reduce_only_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &quote_pool,
         2,
         constants::self_matching_allowed(),
-        100 * test_constants::usdc_multiplier(), // quantity (selling 100 USDC to get ~100 USDT, less than 300 debt)
-        false, // is_bid = false (selling USDC to get USDT)
+        100 * test_constants::usdc_multiplier(),
+        // quantity (selling 100 USDC to get ~100 USDT, less than 300 debt)
+        false,
+        // is_bid = false (selling USDC to get USDT)
         false,
         &clock,
-        scenario.ctx(),
     );
 
     destroy(order_info);
@@ -1138,7 +1315,7 @@ fun test_place_reduce_only_market_order_incorrect_pool() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
+        base_pool_id,
         quote_pool_id,
         pool_id,
         registry_id,
@@ -1164,19 +1341,73 @@ fun test_place_reduce_only_market_order_incorrect_pool() {
 
     scenario.next_tx(test_constants::user1());
     let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
 
-    pool_proxy::place_reduce_only_market_order<USDC, USDT, USDT>(
+    test_helpers::place_reduce_only_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
-        &mut mm,
-        &mut wrong_pool, // Wrong pool!
+        &base_pool,
         &quote_pool,
+        &mut mm,
+        &mut wrong_pool,
         4,
         constants::self_matching_allowed(),
         500,
         false,
         false,
         &clock,
+    );
+
+    abort
+}
+
+// Market-order counterpart of `test_place_reduce_only_limit_order_v2_unregistered_pool`.
+// See that test for the rationale (registry uniqueness blocks a debt-side
+// mismatch; only the no-debt path is constructable).
+#[test, expected_failure(abort_code = margin_manager::EIncorrectMarginPool)]
+fun test_place_reduce_only_market_order_v2_unregistered_pool() {
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        base_pool_id,
+        quote_pool_id,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
         scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+
+    test_helpers::place_reduce_only_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
+        &registry,
+        &base_pool,
+        &quote_pool,
+        &mut mm,
+        &mut pool,
+        2,
+        constants::self_matching_allowed(),
+        100 * test_constants::usdc_multiplier(),
+        true,
+        false,
+        &clock,
     );
 
     abort
@@ -1189,7 +1420,7 @@ fun test_place_reduce_only_market_order_not_reduce_only() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
+        base_pool_id,
         quote_pool_id,
         pool_id,
         registry_id,
@@ -1244,21 +1475,27 @@ fun test_place_reduce_only_market_order_not_reduce_only() {
 
     // User has no USDC debt but has USDT debt, tries to buy USDC (is_bid = true)
     // This should fail because it's not reducing any USDC position - user is increasing exposure
-    pool_proxy::place_reduce_only_market_order<USDC, USDT, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    test_helpers::place_reduce_only_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &quote_pool, // Pass quote_pool since we have USDT debt
+        // Pass quote_pool since we have USDT debt
         3,
         constants::self_matching_allowed(),
-        100 * test_constants::usdc_multiplier(), // quantity
-        true, // is_bid = true (buying USDC)
+        100 * test_constants::usdc_multiplier(),
+        // quantity
+        true,
+        // is_bid = true (buying USDC)
         false,
         &clock,
-        scenario.ctx(),
     );
 
     return_shared_3!(mm, pool, quote_pool);
+    return_shared(base_pool);
     destroy(usdc_price);
     destroy(usdt_price);
     cleanup_margin_test(registry, _admin_cap, _maintainer_cap, clock, scenario);
@@ -1333,18 +1570,20 @@ fun test_place_reduce_only_market_order_not_reduce_only_quantity_bid() {
     destroy(coin);
 
     // User has USDC debt of 100, tries to buy 101 USDC (more than debt)
-    pool_proxy::place_reduce_only_market_order<USDC, USDT, USDC>(
+    test_helpers::place_reduce_only_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &base_pool,
         4,
         constants::self_matching_allowed(),
         101 * test_constants::usdc_multiplier(),
-        true, // is_bid
+        true,
+        // is_bid
         false,
         &clock,
-        scenario.ctx(),
     );
 
     abort
@@ -1420,18 +1659,20 @@ fun test_place_reduce_only_market_order_not_reduce_only_quantity_ask() {
 
     // User has USDT debt of 100, tries to sell enough to get more than 100 USDT (quote_quantity > debt)
     // Selling 150 USDC at ~1:1 should yield ~150 USDT, exceeding the 100 USDT debt
-    pool_proxy::place_reduce_only_market_order<USDC, USDT, USDT>(
+    test_helpers::place_reduce_only_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        &quote_pool,
         5,
         constants::self_matching_allowed(),
         150 * test_constants::usdc_multiplier(),
-        false, // is_bid = false (selling USDC to get USDT)
+        false,
+        // is_bid = false (selling USDC to get USDT)
         false,
         &clock,
-        scenario.ctx(),
     );
 
     abort
@@ -1542,8 +1783,8 @@ fun test_modify_order_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -1577,21 +1818,30 @@ fun test_modify_order_ok() {
     destroy_2!(usdc_price, usdt_price);
 
     // First place an order
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals)
+        1_000_000_000,
+        // price (1.0 in 9 decimals)
         100 * test_constants::usdc_multiplier(),
-        false, // is_bid (sell USDC for USDT)
         false,
-        2000000, // expire_timestamp
+        // is_bid (sell USDC for USDT)
+        false,
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     let order_id = order_info.order_id();
 
@@ -1618,8 +1868,8 @@ fun test_cancel_order_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -1652,21 +1902,30 @@ fun test_cancel_order_ok() {
     );
     destroy_2!(usdc_price, usdt_price);
 
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals)
+        1_000_000_000,
+        // price (1.0 in 9 decimals)
         100 * test_constants::usdc_multiplier(),
-        false, // is_bid (sell USDC for USDT)
         false,
-        2000000, // expire_timestamp
+        // is_bid (sell USDC for USDT)
+        false,
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     let order_id = order_info.order_id();
 
@@ -1692,8 +1951,8 @@ fun test_cancel_orders_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -1726,36 +1985,52 @@ fun test_cancel_orders_ok() {
     );
     destroy_2!(usdc_price, usdt_price);
 
-    let order_info1 = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info1 = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals)
-        1000 * test_constants::usdc_multiplier(), // Increased quantity to meet minimum size
-        false, // is_bid (sell USDC for USDT)
+        1_000_000_000,
+        // price (1.0 in 9 decimals)
+        1000 * test_constants::usdc_multiplier(),
+        // Increased quantity to meet minimum size
         false,
-        2000000, // expire_timestamp
+        // is_bid (sell USDC for USDT)
+        false,
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
-    let order_info2 = pool_proxy::place_limit_order<USDC, USDT>(
+    let order_info2 = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         2,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_020_000_000, // price (1.02 in 9 decimals, slightly higher)
-        1000 * test_constants::usdc_multiplier(), // Increased quantity to meet minimum size
-        false, // is_bid (sell USDC for USDT)
+        1_020_000_000,
+        // price (1.02 in 9 decimals, slightly higher)
+        1000 * test_constants::usdc_multiplier(),
+        // Increased quantity to meet minimum size
         false,
-        2000000, // expire_timestamp
+        // is_bid (sell USDC for USDT)
+        false,
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     let order_ids = vector[order_info1.order_id(), order_info2.order_id()];
 
@@ -2117,8 +2392,8 @@ fun test_withdraw_settled_amounts_permissionless_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -2155,21 +2430,33 @@ fun test_withdraw_settled_amounts_permissionless_ok() {
 
     // Place a sell order
     // Price must be within 5% of oracle price (1_000_000_000 for USDC/USDT at $1 each)
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
-        1, // client_order_id
+        1,
+        // client_order_id
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // price (1.0 in 9 decimals, within 5% of oracle price)
-        100 * test_constants::usdc_multiplier(), // quantity
-        false, // is_bid (sell USDC for USDT)
-        false, // pay_with_deep
-        2000000, // expire_timestamp
+        1_000_000_000,
+        // price (1.0 in 9 decimals, within 5% of oracle price)
+        100 * test_constants::usdc_multiplier(),
+        // quantity
+        false,
+        // is_bid (sell USDC for USDT)
+        false,
+        // pay_with_deep
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     destroy(order_info);
 
@@ -2202,21 +2489,33 @@ fun test_withdraw_settled_amounts_permissionless_ok() {
     destroy_2!(usdc_price, usdt_price);
 
     // Place a buy order that matches user1's sell order
-    let order_info2 = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info2 = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm2,
         &mut pool,
-        2, // client_order_id
+        2,
+        // client_order_id
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // same price (1.0 in 9 decimals)
-        100 * test_constants::usdc_multiplier(), // same quantity
-        true, // is_bid (buy USDC with USDT)
-        false, // pay_with_deep
-        2000000, // expire_timestamp
+        1_000_000_000,
+        // same price (1.0 in 9 decimals)
+        100 * test_constants::usdc_multiplier(),
+        // same quantity
+        true,
+        // is_bid (buy USDC with USDT)
+        false,
+        // pay_with_deep
+        2000000,
+        // expire_timestamp
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
     destroy(order_info2);
 
     // Now user1 has settled balances (received USDT from the trade)
@@ -2328,8 +2627,8 @@ fun test_limit_order_price_too_high() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -2367,21 +2666,28 @@ fun test_limit_order_price_too_high() {
     // Try to place order at price 10% above oracle (1_100_000_000)
     // Oracle price is 1_000_000_000 (1.0), tolerance is 5%
     // 10% above = 1_100_000_000, which exceeds upper bound of 1_050_000_000
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_100_000_000, // 10% above oracle - should fail
+        1_100_000_000,
+        // 10% above oracle - should fail
         100 * test_constants::usdc_multiplier(),
         true,
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort 0
 }
@@ -2395,8 +2701,8 @@ fun test_limit_order_price_too_low() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -2435,21 +2741,29 @@ fun test_limit_order_price_too_low() {
     // Oracle price is 1_000_000_000 (1.0), tolerance is 5%
     // 10% below = 900_000_000, which is below lower bound of 950_000_000
     // For asks, lower bound is checked - should fail
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        900_000_000, // 10% below oracle - should fail for asks
+        900_000_000,
+        // 10% below oracle - should fail for asks
         100 * test_constants::usdc_multiplier(),
-        false, // is_bid = false (ask/sell order)
+        false,
+        // is_bid = false (ask/sell order)
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort 0
 }
@@ -2462,8 +2776,8 @@ fun test_limit_order_price_at_upper_bound_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -2501,21 +2815,29 @@ fun test_limit_order_price_at_upper_bound_ok() {
     // Place order at price exactly at 5% above oracle (1_050_000_000)
     // Oracle price is 1_000_000_000 (1.0), upper bound = 1_050_000_000
     // Using is_bid=false (sell USDC) since we deposited USDC
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_050_000_000, // Exactly at upper bound - should succeed
+        1_050_000_000,
+        // Exactly at upper bound - should succeed
         100 * test_constants::usdc_multiplier(),
-        false, // sell USDC for USDT
+        false,
+        // sell USDC for USDT
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     assert!(order_info.client_order_id() == 1);
     destroy(order_info);
@@ -2531,8 +2853,8 @@ fun test_limit_order_price_at_lower_bound_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -2570,21 +2892,29 @@ fun test_limit_order_price_at_lower_bound_ok() {
     // Place order at price exactly at 5% below oracle (950_000_000)
     // Oracle price is 1_000_000_000 (1.0), lower bound = 950_000_000
     // Using is_bid=false (sell USDC) since we deposited USDC
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        950_000_000, // Exactly at lower bound - should succeed
+        950_000_000,
+        // Exactly at lower bound - should succeed
         100 * test_constants::usdc_multiplier(),
-        false, // sell USDC for USDT
+        false,
+        // sell USDC for USDT
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     assert!(order_info.client_order_id() == 1);
     destroy(order_info);
@@ -2598,8 +2928,18 @@ fun test_set_tolerance_too_low() {
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
     // Create margin pools first (required for enabling DeepBook pool)
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     // Create and enable a pool
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
@@ -2636,8 +2976,18 @@ fun test_set_tolerance_too_high() {
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
     // Create margin pools first (required for enabling DeepBook pool)
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     // Create and enable a pool
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
@@ -2674,8 +3024,18 @@ fun test_set_tolerance_within_bounds_ok() {
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
     // Create margin pools first (required for enabling DeepBook pool)
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     // Create and enable a pool
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
@@ -2718,8 +3078,18 @@ fun test_set_tolerance_within_bounds_ok() {
 fun test_set_max_price_age_too_low() {
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -2753,8 +3123,18 @@ fun test_set_max_price_age_too_low() {
 fun test_set_max_price_age_too_high() {
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -2791,8 +3171,18 @@ fun test_tolerance_decrease_changes_bounds() {
     // Verify that decreasing tolerance from 5% to 1% correctly changes price bounds
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -2851,8 +3241,18 @@ fun test_tolerance_increase_changes_bounds() {
     // Verify that increasing tolerance from 5% to 10% correctly changes price bounds
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -2917,8 +3317,18 @@ fun test_max_price_age_decrease_makes_price_stale() {
 
     clock.set_for_testing(1_000_000); // Start at 1 second
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -2976,8 +3386,18 @@ fun test_max_price_age_increase_makes_price_fresh() {
 
     clock.set_for_testing(1_000_000); // Start at 1 second
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -3030,8 +3450,18 @@ fun test_tolerance_decrease_rejects_order_e2e() {
     // End-to-end test: place order fails after tolerance is decreased
     let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -3093,21 +3523,29 @@ fun test_tolerance_decrease_rejects_order_e2e() {
     destroy_2!(usdc_price, usdt_price);
 
     // Try to place bid at 4% above oracle - should FAIL with 1% tolerance
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_040_000_000, // 4% above oracle
+        1_040_000_000,
+        // 4% above oracle
         100 * test_constants::usdc_multiplier(),
-        true, // is_bid
+        true,
+        // is_bid
         false,
         2000000,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort 0
 }
@@ -3119,8 +3557,18 @@ fun test_max_price_age_decrease_rejects_order_e2e() {
 
     clock.set_for_testing(1_000_000);
 
-    create_margin_pool<USDC>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
-    create_margin_pool<USDT>(&mut scenario, &maintainer_cap, default_protocol_config(), &clock);
+    let base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
 
     let (pool_id, registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
 
@@ -3185,8 +3633,13 @@ fun test_max_price_age_decrease_rejects_order_e2e() {
     destroy_2!(usdc_price, usdt_price);
 
     // Try to place order - should FAIL because price is stale
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
@@ -3198,8 +3651,9 @@ fun test_max_price_age_decrease_rejects_order_e2e() {
         false,
         2000000,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort 0
 }
@@ -3221,8 +3675,8 @@ fun test_limit_order_price_just_above_upper_bound_fails() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3258,21 +3712,29 @@ fun test_limit_order_price_just_above_upper_bound_fails() {
 
     // Oracle price is 1_000_000_000, upper bound = 1_050_000_000
     // Price 1_050_000_001 is just above upper bound - should fail for bids
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_050_000_001, // Just above upper bound
+        1_050_000_001,
+        // Just above upper bound
         100 * test_constants::usdc_multiplier(),
-        true, // is_bid = true (buy order)
+        true,
+        // is_bid = true (buy order)
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort 0
 }
@@ -3285,8 +3747,8 @@ fun test_limit_order_price_just_below_lower_bound_fails() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3322,21 +3784,28 @@ fun test_limit_order_price_just_below_lower_bound_fails() {
 
     // Oracle price is 1_000_000_000, lower bound = 950_000_000
     // Price 949_999_999 is just below lower bound - should fail
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        949_999_999, // Just below lower bound
+        949_999_999,
+        // Just below lower bound
         100 * test_constants::usdc_multiplier(),
         false,
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort 0
 }
@@ -3350,8 +3819,8 @@ fun test_bid_order_allowed_at_any_price_below_oracle() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3389,21 +3858,29 @@ fun test_bid_order_allowed_at_any_price_below_oracle() {
     // Place bid at 50% below oracle (500_000_000)
     // Oracle price is 1_000_000_000 (1.0), this is way below lower bound of 950_000_000
     // But bids don't check lower bound - should succeed
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        500_000_000, // 50% below oracle - should succeed for bids
+        500_000_000,
+        // 50% below oracle - should succeed for bids
         100 * test_constants::usdc_multiplier(),
-        true, // is_bid = true (buy order)
+        true,
+        // is_bid = true (buy order)
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     assert!(order_info.client_order_id() == 1);
     destroy(order_info);
@@ -3420,8 +3897,8 @@ fun test_ask_order_allowed_at_any_price_above_oracle() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3459,21 +3936,29 @@ fun test_ask_order_allowed_at_any_price_above_oracle() {
     // Place ask at 50% above oracle (1_500_000_000)
     // Oracle price is 1_000_000_000 (1.0), this is way above upper bound of 1_050_000_000
     // But asks don't check upper bound - should succeed
-    let order_info = pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_500_000_000, // 50% above oracle - should succeed for asks
+        1_500_000_000,
+        // 50% above oracle - should succeed for asks
         100 * test_constants::usdc_multiplier(),
-        false, // is_bid = false (sell order)
+        false,
+        // is_bid = false (sell order)
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     assert!(order_info.client_order_id() == 1);
     destroy(order_info);
@@ -3491,8 +3976,8 @@ fun test_market_buy_order_above_oracle_within_bounds() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3531,18 +4016,25 @@ fun test_market_buy_order_above_oracle_within_bounds() {
 
     // Market buy USDC - will execute at $1.01 (above oracle of $1.00)
     // Bids only check upper bound ($1.05), so $1.01 should pass
-    let order_info = pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
         100 * test_constants::usdc_multiplier(),
-        true, // is_bid = true (buy)
+        true,
+        // is_bid = true (buy)
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     assert!(order_info.client_order_id() == 1);
     destroy(order_info);
@@ -3560,8 +4052,8 @@ fun test_market_sell_order_below_oracle_within_bounds() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3600,18 +4092,25 @@ fun test_market_sell_order_below_oracle_within_bounds() {
 
     // Market sell USDC - will execute at $0.99 (below oracle of $1.00)
     // Asks only check lower bound ($0.95), so $0.99 should pass
-    let order_info = pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
         100 * test_constants::usdc_multiplier(),
-        false, // is_bid = false (sell)
+        false,
+        // is_bid = false (sell)
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     assert!(order_info.client_order_id() == 1);
     destroy(order_info);
@@ -3628,8 +4127,8 @@ fun test_market_buy_order_exceeds_upper_bound() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3668,18 +4167,25 @@ fun test_market_buy_order_exceeds_upper_bound() {
 
     // Market buy USDC - will try to execute at $1.10 (exceeds upper bound of $1.05)
     // Should fail with EPriceDeviationTooHigh
-    pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
         100 * test_constants::usdc_multiplier(),
-        true, // is_bid = true (buy)
+        true,
+        // is_bid = true (buy)
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -3693,8 +4199,8 @@ fun test_market_sell_order_below_lower_bound() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3733,18 +4239,25 @@ fun test_market_sell_order_below_lower_bound() {
 
     // Market sell USDC - will try to execute at $0.90 (below lower bound of $0.95)
     // Should fail with EPriceDeviationTooHigh
-    pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
         100 * test_constants::usdc_multiplier(),
-        false, // is_bid = false (sell)
+        false,
+        // is_bid = false (sell)
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -3757,8 +4270,8 @@ fun test_market_buy_order_no_liquidity() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3795,18 +4308,25 @@ fun test_market_buy_order_no_liquidity() {
 
     // Market buy with no liquidity - base_out will be 0
     // Should fail with ENoLiquidityInOrderbook
-    pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
         100 * test_constants::usdc_multiplier(),
-        true, // is_bid = true (buy)
+        true,
+        // is_bid = true (buy)
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -3819,8 +4339,8 @@ fun test_market_sell_order_no_liquidity() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -3857,18 +4377,25 @@ fun test_market_sell_order_no_liquidity() {
 
     // Market sell with no liquidity - base_used will be 0
     // Should fail with EPriceDeviationTooHigh
-    pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
         100 * test_constants::usdc_multiplier(),
-        false, // is_bid = false (sell)
+        false,
+        // is_bid = false (sell)
         false,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -3967,21 +4494,28 @@ fun test_limit_order_price_not_initialized() {
 
     // Try to place limit order without initializing price
     // Should fail with EPriceNotInitialized
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // $1.00
+        1_000_000_000,
+        // $1.00
         100 * test_constants::usdc_multiplier(),
         false,
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -3994,8 +4528,8 @@ fun test_limit_order_price_stale() {
         mut clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -4033,21 +4567,28 @@ fun test_limit_order_price_stale() {
 
     // Try to place limit order with stale price
     // Should fail with EPriceUpdateRequired
-    pool_proxy::place_limit_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::no_restriction(),
         constants::self_matching_allowed(),
-        1_000_000_000, // $1.00
+        1_000_000_000,
+        // $1.00
         100 * test_constants::usdc_multiplier(),
         false,
         false,
         18446744073709551615,
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     abort
 }
@@ -4061,8 +4602,8 @@ fun test_market_sell_min_size_input_fee_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -4106,18 +4647,27 @@ fun test_market_sell_min_size_input_fee_ok() {
     destroy_2!(usdc_price, usdt_price);
 
     // Market sell exactly min_size USDC with input fee (pay_with_deep = false)
-    let order_info = pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
         &registry,
+        &base_pool,
+        &quote_pool,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
-        constants::min_size(), // exactly min_size
-        false, // is_bid = false (sell)
-        false, // pay_with_deep = false (use input fee)
+        constants::min_size(),
+        // exactly min_size
+        false,
+        // is_bid = false (sell)
+        false,
+        // pay_with_deep = false (use input fee)
         &clock,
-        scenario.ctx(),
     );
+    return_shared(base_pool);
+    return_shared(quote_pool);
 
     // Verify order executed
     assert!(order_info.status() == constants::filled());
@@ -4135,8 +4685,8 @@ fun test_market_buy_min_size_input_fee_ok() {
         clock,
         _admin_cap,
         _maintainer_cap,
-        _base_pool_id,
-        _quote_pool_id,
+        base_pool_id,
+        quote_pool_id,
         pool_id,
         registry_id,
     ) = setup_pool_proxy_test_env<USDC, USDT>();
@@ -4182,21 +4732,749 @@ fun test_market_buy_min_size_input_fee_ok() {
     // Market buy exactly min_size USDC with input fee (pay_with_deep = false)
     // For bids, fee is taken from quote input, not base output
     // So this should work regardless of the fix
-    let order_info = pool_proxy::place_market_order<USDC, USDT>(
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_market_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
+        &registry,
+        &base_pool,
+        &quote_pool,
+        &mut mm,
+        &mut pool,
+        1,
+        constants::self_matching_allowed(),
+        constants::min_size(),
+        // exactly min_size base to buy
+        true,
+        // is_bid = true (buy)
+        false,
+        // pay_with_deep = false (use input fee)
+        &clock,
+    );
+    return_shared(base_pool);
+    return_shared(quote_pool);
+
+    // Verify order executed
+    assert!(order_info.status() == constants::filled());
+
+    return_shared_2!(mm, pool);
+    cleanup_margin_test(registry, _admin_cap, _maintainer_cap, clock, scenario);
+}
+
+// === V1 deprecation regression tests ===
+//
+// Each v1 trading entry preserves its on-chain ABI for upgrade compatibility
+// but aborts immediately. These tests assert the abort fires with the
+// expected named error so a future refactor cannot silently restore a v1
+// path.
+
+#[test, expected_failure(abort_code = pool_proxy::EDeprecatedUseV2)]
+fun place_limit_order_v1_aborts() {
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        _b,
+        _q,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
+        scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+
+    let _ = pool_proxy::place_limit_order<USDC, USDT>(
+        &registry,
+        &mut mm,
+        &mut pool,
+        1,
+        constants::no_restriction(),
+        constants::self_matching_allowed(),
+        1_000_000_000,
+        100 * test_constants::usdc_multiplier(),
+        false,
+        false,
+        2_000_000,
+        &clock,
+        scenario.ctx(),
+    );
+
+    abort 999
+}
+
+#[test, expected_failure(abort_code = pool_proxy::EDeprecatedUseV2)]
+fun place_market_order_v1_aborts() {
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        _b,
+        _q,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
+        scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+
+    let _ = pool_proxy::place_market_order<USDC, USDT>(
         &registry,
         &mut mm,
         &mut pool,
         1,
         constants::self_matching_allowed(),
-        constants::min_size(), // exactly min_size base to buy
-        true, // is_bid = true (buy)
-        false, // pay_with_deep = false (use input fee)
+        100 * test_constants::usdc_multiplier(),
+        false,
+        false,
         &clock,
         scenario.ctx(),
     );
 
-    // Verify order executed
-    assert!(order_info.status() == constants::filled());
+    abort 999
+}
+
+#[test, expected_failure(abort_code = pool_proxy::EDeprecatedUseV2)]
+fun place_reduce_only_limit_order_v1_aborts() {
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        base_pool_id,
+        _q,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
+        scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+
+    let _ = pool_proxy::place_reduce_only_limit_order<USDC, USDT, USDC>(
+        &registry,
+        &mut mm,
+        &mut pool,
+        &base_pool,
+        1,
+        constants::no_restriction(),
+        constants::self_matching_allowed(),
+        1_000_000_000,
+        100 * test_constants::usdc_multiplier(),
+        true,
+        false,
+        2_000_000,
+        &clock,
+        scenario.ctx(),
+    );
+
+    abort 999
+}
+
+#[test, expected_failure(abort_code = pool_proxy::EDeprecatedUseV2)]
+fun place_reduce_only_market_order_v1_aborts() {
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        base_pool_id,
+        _q,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
+        scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+
+    let _ = pool_proxy::place_reduce_only_market_order<USDC, USDT, USDC>(
+        &registry,
+        &mut mm,
+        &mut pool,
+        &base_pool,
+        1,
+        constants::self_matching_allowed(),
+        100 * test_constants::usdc_multiplier(),
+        true,
+        false,
+        &clock,
+        scenario.ctx(),
+    );
+
+    abort 999
+}
+
+// === Post-trade solvency regression test ===
+//
+// Borrow USDC against USDT collateral right at `min_borrow_risk_ratio` (1.25,
+// the borrow floor in test config), then sell the borrowed USDC against the
+// standard orderbook bid (0.99). The 1% adverse fill drops `risk_ratio` from
+// 1.25 to ~1.24, breaching the floor; the v2 invariant aborts.
+#[test, expected_failure(abort_code = pool_proxy::EInsufficientRiskRatioAfterTrade)]
+fun place_limit_order_v2_borrow_at_floor_then_adverse_fill_aborts() {
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        base_pool_id,
+        quote_pool_id,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+    setup_orderbook_liquidity_stablecoin<USDC, USDT>(&mut scenario, pool_id, &clock);
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let mut base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
+        scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+    let usdc_price = build_demo_usdc_price_info_object(&mut scenario, &clock);
+    let usdt_price = build_demo_usdt_price_info_object(&mut scenario, &clock);
+
+    // Deposit 100 USDT collateral + DEEP for fees, borrow 400 USDC.
+    // Post-borrow: 100 USDT + 400 USDC = 500 USDC-equiv, debt 400 USDC,
+    // risk_ratio = 500/400 = 1.25 (exactly at borrow floor). DEEP isn't summed
+    // by `calculate_assets`, so it doesn't affect risk_ratio.
+    mm.deposit<USDC, USDT, USDT>(
+        &registry,
+        &usdc_price,
+        &usdt_price,
+        mint_coin<USDT>(100 * test_constants::usdt_multiplier(), scenario.ctx()),
+        &clock,
+        scenario.ctx(),
+    );
+    mm.deposit<USDC, USDT, DEEP>(
+        &registry,
+        &usdc_price,
+        &usdt_price,
+        mint_coin<DEEP>(100 * test_constants::deep_multiplier(), scenario.ctx()),
+        &clock,
+        scenario.ctx(),
+    );
+    mm.borrow_base<USDC, USDT>(
+        &registry,
+        &mut base_pool,
+        &usdc_price,
+        &usdt_price,
+        &pool,
+        400 * test_constants::usdc_multiplier(),
+        &clock,
+        scenario.ctx(),
+    );
+    destroy_2!(usdc_price, usdt_price);
+
+    // Sell 100 USDC at 0.99 — fills against resting bid at 0.99 (pay_with_deep
+    // covers fees from the DEEP balance, not the trade output).
+    // Pre-trade asset: 400 USDC + 100 USDT = 500 USDC-equiv, debt 400.
+    // Post-trade: 300 USDC + 199 USDT = 499 USDC-equiv, debt 400,
+    // risk_ratio = 499/400 = 1.2475 < 1.25. Aborts.
+    let _ = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
+        &registry,
+        &base_pool,
+        &quote_pool,
+        &mut mm,
+        &mut pool,
+        1,
+        constants::no_restriction(),
+        constants::self_matching_allowed(),
+        990_000_000,
+        100 * test_constants::usdc_multiplier(),
+        false, // is_bid = false (sell)
+        true, // pay_with_deep
+        2_000_000,
+        &clock,
+    );
+
+    abort 999
+}
+
+// === Max Order TTL Tests ===
+//
+// `clamp_expire_timestamp` bounds margin limit orders to at most
+// `now + max_order_ttl_ms`. Default is 3 days; admin can tune in [1h, 30d].
+// Test clock is set to 1_000_000 ms in the test scaffolding (see
+// `test_helpers::setup_margin_registry`).
+
+#[test, expected_failure(abort_code = margin_registry::EInvalidOrderTtl)]
+fun test_set_max_order_ttl_too_low() {
+    let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
+
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+
+    let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
+
+    scenario.next_tx(test_constants::admin());
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    enable_deepbook_margin_on_pool<USDC, USDT>(
+        pool_id,
+        &mut registry,
+        &admin_cap,
+        &clock,
+        &mut scenario,
+    );
+    return_shared(registry);
+
+    scenario.next_tx(test_constants::admin());
+    let pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+
+    registry.set_max_order_ttl<USDC, USDT>(
+        &admin_cap,
+        &pool,
+        30 * 60 * 1000, // 30 minutes — below 1h minimum
+        &clock,
+    );
+
+    abort 0
+}
+
+#[test, expected_failure(abort_code = margin_registry::EInvalidOrderTtl)]
+fun test_set_max_order_ttl_too_high() {
+    let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
+
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+
+    let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
+
+    scenario.next_tx(test_constants::admin());
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    enable_deepbook_margin_on_pool<USDC, USDT>(
+        pool_id,
+        &mut registry,
+        &admin_cap,
+        &clock,
+        &mut scenario,
+    );
+    return_shared(registry);
+
+    scenario.next_tx(test_constants::admin());
+    let pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+
+    registry.set_max_order_ttl<USDC, USDT>(
+        &admin_cap,
+        &pool,
+        31 * 24 * 60 * 60 * 1000, // 31 days — above 30d maximum
+        &clock,
+    );
+
+    abort 0
+}
+
+#[test]
+fun set_max_order_ttl_within_bounds_ok() {
+    let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
+
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+
+    let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
+
+    scenario.next_tx(test_constants::admin());
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    enable_deepbook_margin_on_pool<USDC, USDT>(
+        pool_id,
+        &mut registry,
+        &admin_cap,
+        &clock,
+        &mut scenario,
+    );
+    return_shared(registry);
+
+    scenario.next_tx(test_constants::admin());
+    let pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+
+    let one_day_ms = 24 * 60 * 60 * 1000;
+    registry.set_max_order_ttl<USDC, USDT>(&admin_cap, &pool, one_day_ms, &clock);
+
+    assert!(registry.max_order_ttl_ms(pool_id) == one_day_ms);
+
+    // Update again to exercise the mutable path, not just first-insert.
+    let two_days_ms = 2 * one_day_ms;
+    registry.set_max_order_ttl<USDC, USDT>(&admin_cap, &pool, two_days_ms, &clock);
+    assert!(registry.max_order_ttl_ms(pool_id) == two_days_ms);
+
+    return_shared_2!(registry, pool);
+    destroy(admin_cap);
+    destroy(maintainer_cap);
+    destroy(clock);
+    scenario.end();
+}
+
+#[test]
+fun max_order_ttl_lazy_default() {
+    // Pools that have never had `set_max_order_ttl` called still get the
+    // 3-day default (lazy-default read path).
+    let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
+
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+
+    let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
+
+    scenario.next_tx(test_constants::admin());
+    let registry = scenario.take_shared<MarginRegistry>();
+
+    assert!(registry.max_order_ttl_ms(pool_id) == margin_constants::default_max_order_ttl_ms());
+    // 3 days = 259_200_000 ms (sanity-check the literal hasn't drifted).
+    assert!(registry.max_order_ttl_ms(pool_id) == 3 * 24 * 60 * 60 * 1000);
+
+    return_shared(registry);
+    destroy(admin_cap);
+    destroy(maintainer_cap);
+    destroy(clock);
+    scenario.end();
+}
+
+#[test]
+fun clamp_expire_timestamp_passthrough_and_clamp() {
+    // Direct exercise of the clamp helper: small inputs pass, large inputs cap.
+    let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
+
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+
+    let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
+
+    scenario.next_tx(test_constants::admin());
+    let registry = scenario.take_shared<MarginRegistry>();
+
+    // Test clock is at 1_000_000 ms. Default TTL is 3 days = 259_200_000 ms.
+    // Cap = 1_000_000 + 259_200_000 = 260_200_000.
+    let now = 1_000_000u64;
+    let cap = now + margin_constants::default_max_order_ttl_ms();
+
+    // Small expire_timestamp passes through unchanged.
+    assert!(registry.clamp_expire_timestamp(pool_id, 2_000_000, &clock) == 2_000_000);
+    // Boundary: exact cap passes through.
+    assert!(registry.clamp_expire_timestamp(pool_id, cap, &clock) == cap);
+    // One past cap clamps.
+    assert!(registry.clamp_expire_timestamp(pool_id, cap + 1, &clock) == cap);
+    // u64::MAX-ish clamps.
+    assert!(registry.clamp_expire_timestamp(pool_id, 1_000_000_000_000_000, &clock) == cap);
+    // expire_timestamp = 0 passes through.
+    assert!(registry.clamp_expire_timestamp(pool_id, 0, &clock) == 0);
+
+    return_shared(registry);
+    destroy(admin_cap);
+    destroy(maintainer_cap);
+    destroy(clock);
+    scenario.end();
+}
+
+#[test]
+fun clamp_uses_admin_set_ttl_after_update() {
+    // After admin tightens per-pool TTL, the clamp uses the new value.
+    let (mut scenario, clock, admin_cap, maintainer_cap) = setup_margin_registry();
+
+    let _base_pool_id = create_margin_pool<USDC>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+    let _quote_pool_id = create_margin_pool<USDT>(
+        &mut scenario,
+        &maintainer_cap,
+        default_protocol_config(),
+        &clock,
+    );
+
+    let (pool_id, _registry_id) = create_pool_for_testing<USDC, USDT>(&mut scenario);
+
+    scenario.next_tx(test_constants::admin());
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    enable_deepbook_margin_on_pool<USDC, USDT>(
+        pool_id,
+        &mut registry,
+        &admin_cap,
+        &clock,
+        &mut scenario,
+    );
+    return_shared(registry);
+
+    scenario.next_tx(test_constants::admin());
+    let pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+
+    // Tighten TTL to 1 hour (the minimum).
+    let one_hour_ms = 60 * 60 * 1000;
+    registry.set_max_order_ttl<USDC, USDT>(&admin_cap, &pool, one_hour_ms, &clock);
+
+    // Clock = 1_000_000 ms, TTL = 3_600_000 ms → cap = 4_600_000.
+    let now = 1_000_000u64;
+    let expected_cap = now + one_hour_ms;
+    assert!(registry.clamp_expire_timestamp(pool_id, 999_999_999, &clock) == expected_cap);
+    assert!(registry.clamp_expire_timestamp(pool_id, 2_000_000, &clock) == 2_000_000);
+
+    return_shared_2!(registry, pool);
+    destroy(admin_cap);
+    destroy(maintainer_cap);
+    destroy(clock);
+    scenario.end();
+}
+
+#[test]
+fun place_limit_order_clamps_expire_timestamp() {
+    // End-to-end: a huge expire_timestamp ends up at the 3-day cap on the
+    // resting order returned by the proxy entry.
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        base_pool_id,
+        quote_pool_id,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
+        scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+    let usdc_price = build_demo_usdc_price_info_object(&mut scenario, &clock);
+    let usdt_price = build_demo_usdt_price_info_object(&mut scenario, &clock);
+    mm.deposit<USDC, USDT, USDC>(
+        &registry,
+        &usdc_price,
+        &usdt_price,
+        mint_coin<USDC>(10000 * test_constants::usdc_multiplier(), scenario.ctx()),
+        &clock,
+        scenario.ctx(),
+    );
+    destroy_2!(usdc_price, usdt_price);
+
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+
+    let huge_expire_ts = 1_000_000_000_000_000u64;
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
+        &registry,
+        &base_pool,
+        &quote_pool,
+        &mut mm,
+        &mut pool,
+        1,
+        constants::no_restriction(),
+        constants::self_matching_allowed(),
+        1_000_000_000,
+        100 * test_constants::usdc_multiplier(),
+        false, // is_bid (sell)
+        false,
+        huge_expire_ts,
+        &clock,
+    );
+
+    let now = 1_000_000u64;
+    let expected = now + margin_constants::default_max_order_ttl_ms();
+    assert!(order_info.expire_timestamp() == expected);
+
+    return_shared(base_pool);
+    return_shared(quote_pool);
+    destroy(order_info);
+
+    return_shared_2!(mm, pool);
+    cleanup_margin_test(registry, _admin_cap, _maintainer_cap, clock, scenario);
+}
+
+#[test]
+fun place_limit_order_v2_no_debt_at_oracle_price_ok() {
+    // Sanity: with no debt the post-trade invariant short-circuits, so
+    // `place_limit_order_v2` succeeds normally.
+    let (
+        mut scenario,
+        clock,
+        _admin_cap,
+        _maintainer_cap,
+        base_pool_id,
+        quote_pool_id,
+        pool_id,
+        registry_id,
+    ) = setup_pool_proxy_test_env<USDC, USDT>();
+
+    scenario.next_tx(test_constants::user1());
+    let mut pool = scenario.take_shared_by_id<Pool<USDC, USDT>>(pool_id);
+    let mut registry = scenario.take_shared<MarginRegistry>();
+    let deepbook_registry = scenario.take_shared_by_id<Registry>(registry_id);
+    margin_manager::new<USDC, USDT>(
+        &pool,
+        &deepbook_registry,
+        &mut registry,
+        &clock,
+        scenario.ctx(),
+    );
+    return_shared(deepbook_registry);
+
+    scenario.next_tx(test_constants::user1());
+    let mut mm = scenario.take_shared<MarginManager<USDC, USDT>>();
+    let usdc_price = build_demo_usdc_price_info_object(&mut scenario, &clock);
+    let usdt_price = build_demo_usdt_price_info_object(&mut scenario, &clock);
+    mm.deposit<USDC, USDT, USDC>(
+        &registry,
+        &usdc_price,
+        &usdt_price,
+        mint_coin<USDC>(1000 * test_constants::usdc_multiplier(), scenario.ctx()),
+        &clock,
+        scenario.ctx(),
+    );
+    destroy_2!(usdc_price, usdt_price);
+
+    let base_pool = scenario.take_shared_by_id<MarginPool<USDC>>(base_pool_id);
+    let quote_pool = scenario.take_shared_by_id<MarginPool<USDT>>(quote_pool_id);
+    let order_info = test_helpers::place_limit_order_v2_for_test<USDC, USDT>(
+        &mut scenario,
+        &registry,
+        &base_pool,
+        &quote_pool,
+        &mut mm,
+        &mut pool,
+        1,
+        constants::no_restriction(),
+        constants::self_matching_allowed(),
+        1_000_000_000,
+        100 * test_constants::usdc_multiplier(),
+        false,
+        false,
+        2_000_000,
+        &clock,
+    );
+    return_shared(base_pool);
+    return_shared(quote_pool);
+    destroy(order_info);
 
     return_shared_2!(mm, pool);
     cleanup_margin_test(registry, _admin_cap, _maintainer_cap, clock, scenario);

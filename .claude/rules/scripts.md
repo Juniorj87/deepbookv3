@@ -1,7 +1,6 @@
 ---
 paths:
   - "scripts/**"
-  - "packages/predict/simulations/**"
 ---
 
 # Scripts Development Rules
@@ -19,8 +18,6 @@ paths:
 
 - Run script: `pnpm tsx transactions/<script>.ts`
 - With gas object: `GAS_OBJECT=0x... pnpm tsx transactions/<script>.ts`
-- Predict simulation setup smoke test: `cd packages/predict/simulations && bash run.sh --setup --skip-analysis`
-- Predict simulation end-to-end smoke test: `cd packages/predict/simulations && SIM_MAX_ROWS=1 bash run.sh --skip-analysis`
 
 ## User Preferences
 
@@ -54,17 +51,6 @@ const res = await signAndExecute(tx, "testnet");
 
 ## Common Issues
 
-### Verify Predict Simulation Changes End to End
-If you change files under `packages/predict/simulations/**` or change Move entrypoints used by the
-predict benchmark harness, do not stop at Move unit tests. Run at least the local setup smoke test,
-and if execution paths may be affected, also run a small end-to-end sim like
-`SIM_MAX_ROWS=1 bash run.sh --skip-analysis`.
-
-### Keep Predict Simulation Calls in Sync with Move Entrypoints
-When a Move entrypoint used by the predict simulation changes its generic parameters or signature,
-audit `packages/predict/simulations/src/runtime.ts` for stale `typeArguments` or argument lists.
-Otherwise benchmark CI may fail only as an external `sim exited with code 1` error.
-
 ### TransactionExpiration Enum Error
 SDK v2.1.0+ uses `ValidDuring` (enum value 2) by default. Older multisig tools may not recognize it.
 Fix: Set explicit epoch-based expiration:
@@ -79,6 +65,19 @@ Mainnet multisig transactions require a gas object:
 ```bash
 GAS_OBJECT=0x... pnpm tsx transactions/script.ts
 ```
+
+### Margin Registry State Persists Across `disable_version`
+`MarginRegistry.disable_version(v)` only removes `v` from `allowed_versions`. It does **not**
+clear `pool_registry` (the `Table<ID, PoolConfig>` of registered deepbook pools) or reset each
+pool's `enabled` flag. Practical consequences for migration scripts:
+- Re-calling `registerDeepbookPool` on a pool that's already in the table aborts with
+  `EPoolAlreadyRegistered` (margin_registry code 2). After a version disable, use only
+  `enableDeepbookPool` to re-enable previously-registered pools.
+- A pool's `enabled` state survives the disable. If a pool is already enabled,
+  `enableDeepbookPool` aborts with `EPoolAlreadyEnabled` (code 5); if already disabled,
+  `disableDeepbookPool` aborts with `EPoolAlreadyDisabled` (code 6).
+- `enableDeepbookPoolForLoan` only requires the deepbook pool to be registered, not enabled,
+  so you can stage loan flows for pools that will stay disabled in trading.
 
 ### Move Abort Errors
 Format: `MoveAbort(MoveLocation { module: ModuleId { address: ..., name: "module_name" }, function: N, instruction: M }, ERROR_CODE)`

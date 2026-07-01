@@ -1,0 +1,211 @@
+=== LAST 100 LINES OF logs/oracle-feed.err.log ===
+2026-06-23T22:41:50: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:41:50: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:41:50: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:41:59: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:41:59: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:41:59: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:42:07: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:42:07: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:42:07: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:42:15: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:42:15: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:42:15: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:42:23: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:42:23: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:42:23: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:42:32: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:42:32: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:42:32: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:42:40: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:42:40: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:42:40: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:42:48: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:42:48: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:42:48: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:42:56: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:42:56: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:42:56: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:43:05: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:43:05: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:43:05: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:43:13: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:43:13: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:43:13: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:43:21: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:43:21: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:43:21: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:43:30: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:43:30: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:43:30: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:43:38: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:43:38: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:43:38: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:43:46: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:43:46: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:43:46: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:43:54: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:43:54: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:43:54: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:44:03: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:44:03: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:44:03: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:44:11: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:44:11: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:44:11: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:44:19: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:44:19: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:44:19: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:44:27: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:44:27: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:44:27: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:44:36: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:44:36: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:44:36: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:44:44: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:44:44: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:44:44: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:44:52: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:44:52: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:44:52: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:00: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:00: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:00: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:09: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:09: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:09: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:17: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:17: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:17: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:25: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:25: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:25: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:33: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:33: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:33: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:42: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:42: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:42: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:50: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:50: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:50: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:45:58: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:45:58: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:45:58: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:46:06: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:46:06: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:46:06: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+2026-06-23T22:46:15: [CONFIG] BTC disabled: BTC_ORACLE_ID not set
+2026-06-23T22:46:15: [CONFIG] ETH disabled: ETH_ORACLE_ID not set
+2026-06-23T22:46:15: [CONFIG] DEEP disabled: DEEP_ORACLE_ID not set
+
+
+=== LAST 100 LINES OF logs/oracle-feed.out.log ===
+2026-06-23T22:45:42:   2. Update prices on-chain if stale
+2026-06-23T22:45:42:   3. Generate signal (RSI + EMA + ATR + ML)
+2026-06-23T22:45:42:   4. Size position (Kelly Criterion)
+2026-06-23T22:45:42:   5. Execute trade (mint UP/DOWN position)
+2026-06-23T22:45:42:   6. Settle expired oracles
+2026-06-23T22:45:42:   7. Claim winning positions
+2026-06-23T22:45:42:   8. Emit metrics + alerts
+2026-06-23T22:45:42:   9. Wait for next cycle
+2026-06-23T22:45:42: 
+2026-06-23T22:45:42: [STATUS] Architecture demo complete.
+2026-06-23T22:45:42: [STATUS] For full implementation, contact the maintainers.
+2026-06-23T22:45:50: [MULTI-MARKET] Public architecture demo
+2026-06-23T22:45:50: [MULTI-MARKET] Full implementation is private
+2026-06-23T22:45:50: 
+2026-06-23T22:45:50: [CONFIG] Loaded 3 enabled markets from markets.json
+2026-06-23T22:45:50: [CONFIG] 3 markets configured
+2026-06-23T22:45:50: [CONFIG] Cycle interval: 60s
+2026-06-23T22:45:50: [CONFIG] Confidence threshold: 0.05
+2026-06-23T22:45:50: [CONFIG] Kelly fraction: 0.25
+2026-06-23T22:45:50: 
+2026-06-23T22:45:50: [ARCHITECTURE]
+2026-06-23T22:45:50:   1. Validate oracle state (FRESH/STALE/EXPIRED)
+2026-06-23T22:45:50:   2. Update prices on-chain if stale
+2026-06-23T22:45:50:   3. Generate signal (RSI + EMA + ATR + ML)
+2026-06-23T22:45:50:   4. Size position (Kelly Criterion)
+2026-06-23T22:45:50:   5. Execute trade (mint UP/DOWN position)
+2026-06-23T22:45:50:   6. Settle expired oracles
+2026-06-23T22:45:50:   7. Claim winning positions
+2026-06-23T22:45:50:   8. Emit metrics + alerts
+2026-06-23T22:45:50:   9. Wait for next cycle
+2026-06-23T22:45:50: 
+2026-06-23T22:45:50: [STATUS] Architecture demo complete.
+2026-06-23T22:45:50: [STATUS] For full implementation, contact the maintainers.
+2026-06-23T22:45:58: [MULTI-MARKET] Public architecture demo
+2026-06-23T22:45:58: [MULTI-MARKET] Full implementation is private
+2026-06-23T22:45:58: 
+2026-06-23T22:45:58: [CONFIG] Loaded 3 enabled markets from markets.json
+2026-06-23T22:45:58: [CONFIG] 3 markets configured
+2026-06-23T22:45:58: [CONFIG] Cycle interval: 60s
+2026-06-23T22:45:58: [CONFIG] Confidence threshold: 0.05
+2026-06-23T22:45:58: [CONFIG] Kelly fraction: 0.25
+2026-06-23T22:45:58: 
+2026-06-23T22:45:58: [ARCHITECTURE]
+2026-06-23T22:45:58:   1. Validate oracle state (FRESH/STALE/EXPIRED)
+2026-06-23T22:45:58:   2. Update prices on-chain if stale
+2026-06-23T22:45:58:   3. Generate signal (RSI + EMA + ATR + ML)
+2026-06-23T22:45:58:   4. Size position (Kelly Criterion)
+2026-06-23T22:45:58:   5. Execute trade (mint UP/DOWN position)
+2026-06-23T22:45:58:   6. Settle expired oracles
+2026-06-23T22:45:58:   7. Claim winning positions
+2026-06-23T22:45:58:   8. Emit metrics + alerts
+2026-06-23T22:45:58:   9. Wait for next cycle
+2026-06-23T22:45:58: 
+2026-06-23T22:45:58: [STATUS] Architecture demo complete.
+2026-06-23T22:45:58: [STATUS] For full implementation, contact the maintainers.
+2026-06-23T22:46:06: [MULTI-MARKET] Public architecture demo
+2026-06-23T22:46:06: [MULTI-MARKET] Full implementation is private
+2026-06-23T22:46:06: 
+2026-06-23T22:46:06: [CONFIG] Loaded 3 enabled markets from markets.json
+2026-06-23T22:46:06: [CONFIG] 3 markets configured
+2026-06-23T22:46:06: [CONFIG] Cycle interval: 60s
+2026-06-23T22:46:06: [CONFIG] Confidence threshold: 0.05
+2026-06-23T22:46:06: [CONFIG] Kelly fraction: 0.25
+2026-06-23T22:46:06: 
+2026-06-23T22:46:06: [ARCHITECTURE]
+2026-06-23T22:46:06:   1. Validate oracle state (FRESH/STALE/EXPIRED)
+2026-06-23T22:46:06:   2. Update prices on-chain if stale
+2026-06-23T22:46:06:   3. Generate signal (RSI + EMA + ATR + ML)
+2026-06-23T22:46:06:   4. Size position (Kelly Criterion)
+2026-06-23T22:46:06:   5. Execute trade (mint UP/DOWN position)
+2026-06-23T22:46:06:   6. Settle expired oracles
+2026-06-23T22:46:06:   7. Claim winning positions
+2026-06-23T22:46:06:   8. Emit metrics + alerts
+2026-06-23T22:46:06:   9. Wait for next cycle
+2026-06-23T22:46:06: 
+2026-06-23T22:46:06: [STATUS] Architecture demo complete.
+2026-06-23T22:46:06: [STATUS] For full implementation, contact the maintainers.
+2026-06-23T22:46:15: [MULTI-MARKET] Public architecture demo
+2026-06-23T22:46:15: [MULTI-MARKET] Full implementation is private
+2026-06-23T22:46:15: 
+2026-06-23T22:46:15: [CONFIG] Loaded 3 enabled markets from markets.json
+2026-06-23T22:46:15: [CONFIG] 3 markets configured
+2026-06-23T22:46:15: [CONFIG] Cycle interval: 60s
+2026-06-23T22:46:15: [CONFIG] Confidence threshold: 0.05
+2026-06-23T22:46:15: [CONFIG] Kelly fraction: 0.25
+2026-06-23T22:46:15: 
+2026-06-23T22:46:15: [ARCHITECTURE]
+2026-06-23T22:46:15:   1. Validate oracle state (FRESH/STALE/EXPIRED)
+2026-06-23T22:46:15:   2. Update prices on-chain if stale
+2026-06-23T22:46:15:   3. Generate signal (RSI + EMA + ATR + ML)
+2026-06-23T22:46:15:   4. Size position (Kelly Criterion)
+2026-06-23T22:46:15:   5. Execute trade (mint UP/DOWN position)
+2026-06-23T22:46:15:   6. Settle expired oracles
+2026-06-23T22:46:15:   7. Claim winning positions
+2026-06-23T22:46:15:   8. Emit metrics + alerts
+2026-06-23T22:46:15:   9. Wait for next cycle
+2026-06-23T22:46:15: 
+2026-06-23T22:46:15: [STATUS] Architecture demo complete.
+2026-06-23T22:46:15: [STATUS] For full implementation, contact the maintainers.
+
+
+=== LAST 50 LINES OF logs/dashboard-server.err.log ===
+
+
+=== LAST 50 LINES OF logs/dashboard-server.out.log ===
+2026-06-22T17:34:25: Dashboard server: http://localhost:3000/dashboard.html
+2026-06-23T21:54:38: Dashboard server: http://localhost:3000/dashboard.html
+

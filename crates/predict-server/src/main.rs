@@ -1,50 +1,46 @@
-use anyhow::Context;
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 use clap::Parser;
-use deepbook_predict_server::reader::Reader;
-use deepbook_predict_server::server::{predict_routes, AppState};
+use predict_server::server::run_server;
 use std::net::SocketAddr;
-use std::sync::Arc;
-use sui_pg_db::{Db, DbArgs};
-use tower_http::cors::CorsLayer;
+use sui_pg_db::DbArgs;
+use url::Url;
 
 #[derive(Parser)]
 #[clap(rename_all = "kebab-case", author, version)]
 struct Args {
     #[command(flatten)]
     db_args: DbArgs,
-
-    #[arg(long, default_value = "127.0.0.1:8080")]
-    listen_address: SocketAddr,
+    #[clap(env, long, default_value_t = 9009)]
+    server_port: u16,
+    #[clap(env, long, default_value = "0.0.0.0:9185")]
+    metrics_address: SocketAddr,
+    #[clap(
+        env,
+        long,
+        default_value = "postgres://postgres:postgrespw@localhost:5432/deepbook"
+    )]
+    database_url: Url,
+    #[clap(env, long, default_value = "https://fullnode.mainnet.sui.io:443")]
+    rpc_url: Url,
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
-
-    // Initialize telemetry
+async fn main() -> Result<(), anyhow::Error> {
     let _guard = telemetry_subscribers::TelemetryConfig::new()
         .with_env()
         .init();
 
-    // Initialize DB
-    let db = Db::new_for_all_queries(args.db_args, None).await?;
+    let Args {
+        db_args,
+        server_port,
+        metrics_address,
+        database_url,
+        rpc_url,
+    } = Args::parse();
 
-    // Initialize State
-    let state = Arc::new(AppState {
-        reader: Reader::new(db),
-    });
-
-    // Initialize Router
-    let app = Router::new()
-        .nest("/api/v1", predict_routes(state))
-        .layer(CorsLayer::permissive());
-
-    // Start Server
-    tracing::info!("Listening on {}", args.listen_address);
-    let listener = tokio::net::TcpListener::bind(args.listen_address).await?;
-    axum::serve(listener, app).await.context("Server failed")?;
+    run_server(server_port, database_url, db_args, rpc_url, metrics_address).await?;
 
     Ok(())
 }
-
-use axum::Router;

@@ -1,0 +1,11 @@
+[package]
+name = "wormhole"
+version = "0.2.0"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet-v1.47.1" }
+
+[addresses]
+wormhole = "0xd5afd4e456e5451f1ca1e7b3d734ce7a0a3b397811a6cb72a4bd1dfc387839f2"
+sui = "0x2"
+std = "0x1"

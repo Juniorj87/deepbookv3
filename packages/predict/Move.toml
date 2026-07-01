@@ -4,17 +4,35 @@ edition = "2024.beta"
 version = "0.0.1"
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "5612ba3005e94b1eaf2dc0dcdbddb0e45668a6fc" }
-deepbook = { local = "../deepbook" }
+fixed_math = { local = "../fixed_math" }
+dusdc = { local = "../dusdc" }
+# Reusable on-chain account primitive. Predict's per-account custody (`Account.vault`)
+# and its app-data slot live here; the former PredictManager / cap / proof layer
+# collapses onto it. Declared `local` like the other in-repo packages.
+account = { local = "../account" }
+# Standalone Pyth + Block Scholes oracle feeds. Predict consumes `propbook::pyth_feed`
+# and `propbook::block_scholes_feed` for live spot/surface pricing (the former
+# in-package `market_oracle`/`pyth_source` modules were extracted into propbook).
+propbook = { local = "../propbook" }
+# DEEP token (from the deepbookv3 repo), used for staking custody (`registry::stake_deep`)
+# and DEEP burning via `token::deep::ProtectedTreasury`.
+token = { git = "https://github.com/MystenLabs/deepbookv3.git", subdir = "packages/token", rev = "main" }
+# Official Pyth Lazer Sui package — now a transitive dependency through `propbook`
+# (which consumes the verified `pyth_lazer::update::Update`). Kept as a direct dep
+# so the publishable root declares the `dep-replacements` linking below. Use
+# `rev = "sui-testnet"` for testnet because Wormhole is custom-deployed there.
 pyth_lazer = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "lazer/contracts/sui", rev = "sui-testnet" }
-wormhole = { git = "https://github.com/pyth-network/wormhole.git", subdir = "sui/wormhole", rev = "sui-testnet" }
+# The stub Block Scholes verifier. Predict SOURCE does not use it (the BS surface
+# is read through `propbook::block_scholes_feed`), but the test fixtures construct a
+# verified `update::Update` via its public `new_update` to seed surfaces. Declared
+# with the same `local` source propbook uses so the resolver unifies the package.
+block_scholes_oracle = { local = "../block_scholes_oracle" }
 
-[addresses]
-deepbook_predict = "0xDEB3"
-sui = "0x2"
-std = "0x1"
-pyth_lazer = "0xf5bd2141967507050a91b58de3d95e77c432cd90d1799ee46effc27430a68c21"
-wormhole = "0xd5afd4e456e5451f1ca1e7b3d734ce7a0a3b397811a6cb72a4bd1dfc387839f2"
-
-[dev-dependencies]
-# ... dev dependencies if needed
+# `pyth_lazer` and `wormhole` are already published on Sui. We depend on source
+# for typechecking only; `dep-replacements` tells `sui client publish` to link
+# against the on-chain packages instead of re-publishing them. Addresses come
+# from `contract_manager/src/store/contracts/SuiLazerContracts.json` in the
+# pyth-network/pyth-crosschain repo (sui-testnet branch).
+[dep-replacements.testnet]
+pyth_lazer = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "lazer/contracts/sui", rev = "sui-testnet", published-at = "0xf5bd2141967507050a91b58de3d95e77c432cd90d1799ee46effc27430a68c21", original-id = "0xf5bd2141967507050a91b58de3d95e77c432cd90d1799ee46effc27430a68c21" }
+wormhole = { git = "https://github.com/pyth-network/wormhole.git", subdir = "sui/wormhole", rev = "sui-testnet", published-at = "0xd5afd4e456e5451f1ca1e7b3d734ce7a0a3b397811a6cb72a4bd1dfc387839f2", original-id = "0xd5afd4e456e5451f1ca1e7b3d734ce7a0a3b397811a6cb72a4bd1dfc387839f2" }

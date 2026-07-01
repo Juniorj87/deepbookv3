@@ -1,5 +1,5 @@
 [package]
-name = "deepbook-predict-schema"
+name = "predict-schema"
 version = "0.1.0"
 authors = ["Mysten Labs <build@mystenlabs.com>"]
 license = "Apache-2.0"
@@ -7,10 +7,12 @@ publish = false
 edition = "2021"
 
 [dependencies]
-diesel = { workspace = true, features = ["postgres", "numeric", "chrono", "serde_json"] }
+sui-field-count = { git = "https://github.com/MystenLabs/sui.git", branch = "testnet" }
+diesel = { workspace = true, features = ["postgres", "uuid", "chrono", "serde_json", "numeric"] }
 diesel_migrations.workspace = true
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
 serde_json = { workspace = true }
-chrono = { version = "0.4", features = ["serde"] }
+strum = "0.27.1"
+strum_macros = "0.27.1"
 bigdecimal = { version = "0.4", features = ["serde"] }
-sui-types = { workspace = true }
+chrono = "0.4"

@@ -1,0 +1,14 @@
+[package]
+name = "pyth_lazer"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet-v1.47.1" }
+wormhole = { local = "../wormhole" }
+
+[addresses]
+pyth_lazer = "0xf5bd2141967507050a91b58de3d95e77c432cd90d1799ee46effc27430a68c21"
+wormhole = "0xd5afd4e456e5451f1ca1e7b3d734ce7a0a3b397811a6cb72a4bd1dfc387839f2"
+sui = "0x2"
+std = "0x1"

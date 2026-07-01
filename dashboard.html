@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepBook Predict Dashboard</title>
+    <style>
+        :root { --bg:#0f172a; --card:#1e293b; --text:#f8fafc; --dim:#94a3b8; --accent:#38bdf8; --up:#22c55e; --down:#ef4444; --warn:#f59e0b; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--text); padding:20px; }
+        .c { max-width:1100px; margin:0 auto; }
+        header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+        h1 { font-size:1.5rem; } h1 span { color:var(--accent); }
+        .badge { padding:5px 14px; border-radius:20px; font-size:.75rem; font-weight:700; border:1px solid; }
+        .badge.on { background:rgba(34,197,94,.15); color:var(--up); border-color:var(--up); }
+        .badge.off { background:rgba(239,68,68,.15); color:var(--down); border-color:var(--down); }
+        .sub { font-size:.8rem; color:var(--dim); }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:20px; }
+        .card { background:var(--card); border-radius:12px; padding:18px; border:1px solid rgba(255,255,255,.05); }
+        .card h2 { font-size:.75rem; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+        .val { font-size:1.8rem; font-weight:700; }
+        .val.sm { font-size:1.2rem; }
+        .mono { font-family:'JetBrains Mono',monospace; color:var(--accent); font-size:.8rem; }
+        .up { color:var(--up); } .down { color:var(--down); } .warn { color:var(--warn); }
+        .signal { display:inline-block; padding:3px 10px; border-radius:6px; font-weight:700; font-size:.9rem; }
+        .signal.UP { background:rgba(34,197,94,.2); color:var(--up); }
+        .signal.DOWN { background:rgba(239,68,68,.2); color:var(--down); }
+        .signal.HOLD { background:rgba(148,163,184,.2); color:var(--dim); }
+        table { width:100%; border-collapse:collapse; }
+        th { text-align:left; color:var(--dim); font-size:.7rem; text-transform:uppercase; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.05); }
+        td { padding:8px 6px; font-size:.82rem; border-bottom:1px solid rgba(255,255,255,.03); }
+        .sec { background:var(--card); border-radius:12px; padding:20px; margin-bottom:16px; border:1px solid rgba(255,255,255,.05); }
+        .sec h2 { font-size:.9rem; color:var(--dim); margin-bottom:14px; text-transform:uppercase; letter-spacing:.05em; }
+        .bar { height:8px; border-radius:4px; display:inline-block; vertical-align:middle; }
+        .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.7rem; font-weight:600; }
+        .tag.OPEN { background:rgba(56,189,248,.2); color:var(--accent); }
+        .tag.CLAIMABLE { background:rgba(34,197,94,.2); color:var(--up); }
+        .tag.CLAIMED { background:rgba(148,163,184,.2); color:var(--dim); }
+        .tag.SETTLED { background:rgba(245,158,11,.2); color:var(--warn); }
+        .footer { text-align:center; margin-top:20px; color:var(--dim); font-size:.75rem; }
+        .loader { width:100%; height:2px; background:rgba(255,255,255,.05); position:fixed; top:0; left:0; }
+        .loader-bar { height:100%; background:var(--accent); width:0%; transition:width .3s; }
+    </style>
+</head>
+<body>
+    <div class="loader"><div class="loader-bar" id="loaderBar"></div></div>
+    <div class="c">
+        <header>
+            <div>
+                <h1>DeepBook <span>Predict</span></h1>
+                <p class="sub" id="lastUpdate">Last sync: never</p>
+            </div>
+            <div style="text-align:right">
+                <span class="badge on" id="serviceStatus">RUNNING</span>
+                <p class="sub" style="margin-top:6px" id="cycleInfo">Cycle #0</p>
+            </div>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h2>BTC Price</h2>
+                <div class="val" id="spotPrice">$0</div>
+                <div class="sub" id="forwardPrice">Forward: $0</div>
+            </div>
+            <div class="card">
+                <h2>Signal</h2>
+                <div class="val"><span class="signal HOLD" id="signalLabel">HOLD</span></div>
+                <div class="sub" id="tradingStatus">Trading enabled</div>
+            </div>
+            <div class="card">
+                <h2>SUI Gas</h2>
+                <div class="val sm" id="suiBal">0 SUI</div>
+            </div>
+            <div class="card">
+                <h2>Balances (Manager)</h2>
+                <div class="val sm" id="deepBal">0 <span style="font-size:.7rem">DEEP</span></div>
+                <div class="sub" id="suiWalletBal">0 SUI (wallet)</div>
+            </div>
+        </div>
+
+        <div class="sec">
+            <h2>Trading Signals</h2>
+            <div id="signalPanel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
+        </div>
+
+        <div class="sec">
+            <h2>Position Statistics</h2>
+            <div class="grid" style="margin-bottom:0">
+                <div><div class="sub">Total</div><div class="val sm" id="posTotal">0</div></div>
+                <div><div class="sub">Open</div><div class="val sm" id="posOpen" style="color:var(--accent)">0</div></div>
+                <div><div class="sub">Claimable (Winners)</div><div class="val sm up" id="posClaimable">0</div></div>
+                <div><div class="sub">Claimed</div><div class="val sm" id="posClaimed" style="color:var(--dim)">0</div></div>
+                <div><div class="sub">Failed (already claimed)</div><div class="val sm warn" id="posFailed">0</div></div>
+                <div><div class="sub">Win Rate</div><div class="val sm up" id="winRate">0%</div></div>
+            </div>
+        </div>
+
+        <div class="sec">
+            <h2>Bets by Pair</h2>
+            <div id="marketStats"></div>
+            <div id="directionStats" style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);text-align:center"></div>
+        </div>
+
+        <div class="sec">
+            <h2>Recent Positions (last 20)</h2>
+            <table>
+                <thead><tr><th>Market</th><th>Direction</th><th>State</th><th>Entry Price</th><th>Strike</th><th>Created</th></tr></thead>
+                <tbody id="posTable"></tbody>
+            </table>
+        </div>
+
+        <div class="sec">
+            <h2>Oracle</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <p class="mono" id="oracleId">0x...</p>
+                    <p class="sub" id="oracleExpiry">Expires: ...</p>
+                </div>
+                <div style="text-align:right">
+                    <p class="sub">Network</p>
+                    <p style="font-weight:700;color:var(--warn)" id="networkName">TESTNET</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="sec">
+            <h2>System</h2>
+            <p class="mono" id="walletAddress" style="font-size:.75rem">0x...</p>
+            <p class="sub" style="margin-top:6px">Manager: <span class="mono" id="managerIdDisplay">0x...</span></p>
+        </div>
+
+        <div class="footer">Auto-updates every 5 seconds. Running via pm2.</div>
+    </div>
+
+    <script>
+        function fmtPrice(raw, market) {
+            if (!raw || raw === 0) return '$0';
+            if (market === 'BTC') return '$' + (raw / 1e9).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            if (market === 'ETH') return '$' + (raw / 1e9).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            if (market === 'DEEP') return '$' + (raw / 1e9).toLocaleString(undefined, {minimumFractionDigits:4, maximumFractionDigits:4});
+            return '$' + (raw / 1e9).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+        }
+        function fmtStrike(raw, market) {
+            if (!raw || raw === 0) return '-';
+            if (market === 'DEEP') return '$' + (raw / 1e9).toLocaleString(undefined, {minimumFractionDigits:4, maximumFractionDigits:4});
+            return '$' + (raw / 1e9).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+        }
+
+        async function updateDashboard() {
+            var bar = document.getElementById('loaderBar');
+            bar.style.width = '30%';
+            try {
+                var r = await fetch('dashboard_state.json?' + Date.now());
+                var d = await r.json();
+                bar.style.width = '70%';
+
+                document.getElementById('lastUpdate').textContent = 'Last sync: ' + new Date(d.lastUpdate).toLocaleTimeString();
+                document.getElementById('cycleInfo').textContent = 'Cycle #' + d.cycle;
+
+                var spot = d.analysis && d.analysis.spot ? Number(d.analysis.spot) : 0;
+                var fwd = d.analysis && d.analysis.forward ? Number(d.analysis.forward) : 0;
+                document.getElementById('spotPrice').textContent = '$' + (spot / 1e9).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+                document.getElementById('forwardPrice').textContent = fwd > 0 ? 'Forward: $' + (fwd / 1e9).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : 'Forward: N/A';
+
+                var sig = document.getElementById('signalLabel');
+                var sigText = d.analysis && d.analysis.signal ? d.analysis.signal : 'HOLD';
+                sig.textContent = sigText;
+                sig.className = 'signal ' + sigText;
+
+                document.getElementById('tradingStatus').textContent = d.tradingEnabled ? 'Trading enabled' : 'Trading disabled';
+                document.getElementById('suiBal').textContent = d.sui_balance || '0 SUI';
+                document.getElementById('deepBal').innerHTML = (d.balances && d.balances.DEEP ? Number(d.balances.DEEP).toLocaleString(undefined, {maximumFractionDigits:0}) : '0') + ' <span style="font-size:.7rem">DEEP</span>';
+                document.getElementById('suiWalletBal').textContent = (d.balances && d.balances.sui ? d.balances.sui : '0') + ' SUI (wallet)';
+
+                var sp = document.getElementById('signalPanel');
+                var sigs = (d.analysis && d.analysis.signals) || {};
+                var sigKeys = Object.keys(sigs);
+                sp.innerHTML = '';
+                if (sigKeys.length === 0) {
+                    sp.innerHTML = '<div style="text-align:center;color:var(--dim);padding:20px;grid-column:1/-1">Waiting for signal data...</div>';
+                }
+                for (var si = 0; si < sigKeys.length; si++) {
+                    var k = sigKeys[si];
+                    var sg = sigs[k];
+                    var sc = sg.score || 0;
+                    var scColor = sc > 0 ? 'var(--up)' : sc < 0 ? 'var(--down)' : 'var(--dim)';
+                    sp.innerHTML += '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:12px">' +
+                        '<div style="font-weight:700;font-size:1rem;margin-bottom:8px">' + k + ' <span class="' + (sg.direction === 'UP' ? 'up' : 'down') + '" style="font-size:.8rem">' + sg.direction + '</span></div>' +
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:.75rem">' +
+                        '<div class="sub">Score</div><div style="color:' + scColor + ';font-weight:700">' + (sc / 1000).toFixed(3) + '</div>' +
+                        '<div class="sub">Confidence</div><div>' + (sg.confidence || 0) + '%</div>' +
+                        '<div class="sub">RSI</div><div>' + (sg.rsi || 0).toFixed(1) + '</div>' +
+                        '<div class="sub">Momentum</div><div>' + ((sg.momentum || 0) * 100).toFixed(3) + '%</div>' +
+                        '<div class="sub">Funding</div><div>' + ((sg.fundingRate || 0) * 100).toFixed(4) + '%</div>' +
+                        '<div class="sub">Kelly</div><div>' + (sg.kelly || 0) + '%</div>' +
+                        '<div class="sub">Session</div><div>' + (sg.session || 'N/A') + '</div>' +
+                        '</div></div>';
+                }
+
+                document.getElementById('oracleId').textContent = d.oracle && d.oracle.id ? d.oracle.id : '0x...';
+                document.getElementById('oracleExpiry').textContent = d.oracle && d.oracle.expiry && d.oracle.expiry > 0 ? 'Expires: ' + new Date(d.oracle.expiry).toLocaleString() : 'Active (auto-renewed)';
+                document.getElementById('networkName').textContent = (d.network || 'testnet').toUpperCase();
+                document.getElementById('walletAddress').textContent = d.address || '0x...';
+                document.getElementById('managerIdDisplay').textContent = d.managerId || '0x...';
+
+                var badge = document.getElementById('serviceStatus');
+                var st = d.status || 'Offline';
+                badge.textContent = st.toUpperCase();
+                badge.className = 'badge ' + (st === 'Running' ? 'on' : 'off');
+
+                var p = d.positions || {};
+                document.getElementById('posTotal').textContent = p.total || 0;
+                document.getElementById('posOpen').textContent = p.open || 0;
+                document.getElementById('posClaimable').textContent = p.claimable || 0;
+                document.getElementById('posClaimed').textContent = p.claimed || 0;
+                document.getElementById('posFailed').textContent = p.failed || 0;
+                var wr = p.winRate || (p.total > 0 ? ((p.winners || 0) / p.total * 100).toFixed(1) : '0');
+                document.getElementById('winRate').textContent = wr + '%';
+
+                var mEl = document.getElementById('marketStats');
+                mEl.innerHTML = '';
+                var markets = d.byMarket || {};
+                var keys = Object.keys(markets);
+                var totalUp = 0, totalDown = 0;
+                for (var i = 0; i < keys.length; i++) {
+                    var name = keys[i];
+                    var s = markets[name];
+                    var wp = s.total > 0 ? (s.winners / s.total * 100).toFixed(0) : 0;
+                    var upPct = s.total > 0 ? (s.up / s.total * 100).toFixed(0) : 0;
+                    totalUp += s.up || 0;
+                    totalDown += s.down || 0;
+                    mEl.innerHTML += '<div style="margin-bottom:10px">' +
+                        '<div style="display:flex;align-items:center;gap:12px">' +
+                        '<span style="font-weight:700;width:50px">' + name + '</span>' +
+                        '<span class="sub">' + s.total + ' bets</span>' +
+                        '<div style="flex:1;display:flex;gap:2px;align-items:center">' +
+                        '<div class="bar" style="width:' + wp + '%;background:var(--up)"></div>' +
+                        '<div class="bar" style="width:' + (100 - wp) + '%;background:rgba(255,255,255,.1)"></div>' +
+                        '</div>' +
+                        '<span class="up" style="width:40px;text-align:right">' + wp + '%</span>' +
+                        '<span class="sub" style="width:70px;text-align:right">' + s.winners + 'W / ' + (s.total - s.winners) + 'L</span>' +
+                        '</div>' +
+                        '<div style="display:flex;gap:16px;margin-left:62px;margin-top:4px">' +
+                        '<span class="up" style="font-size:.75rem">▲ ' + (s.up || 0) + ' UP</span>' +
+                        '<span class="down" style="font-size:.75rem">▼ ' + (s.down || 0) + ' DOWN</span>' +
+                        '</div>' +
+                        '</div>';
+                }
+                var dirEl = document.getElementById('directionStats');
+                if (dirEl) {
+                    var total = totalUp + totalDown;
+                    var upPctAll = total > 0 ? (totalUp / total * 100).toFixed(0) : 0;
+                    dirEl.innerHTML = '<span class="up" style="font-size:1rem">▲ ' + totalUp + ' UP (' + upPctAll + '%)</span> ' +
+                        '<span class="down" style="font-size:1rem">▼ ' + totalDown + ' DOWN (' + (100 - upPctAll) + '%)</span>';
+                }
+
+                var tbody = document.getElementById('posTable');
+                tbody.innerHTML = '';
+                var positions = d.recentPositions || [];
+                for (var j = 0; j < positions.length; j++) {
+                    var pos = positions[j];
+                    var entry = fmtPrice(Number(pos.entryPrice), pos.market);
+                    var strike = fmtStrike(Number(pos.strike), pos.market);
+                    var date = pos.createdAt ? new Date(pos.createdAt).toLocaleString() : '-';
+                    tbody.innerHTML += '<tr>' +
+                        '<td><strong>' + pos.market + '</strong></td>' +
+                        '<td class="' + (pos.direction === 'UP' ? 'up' : 'down') + '">' + pos.direction + '</td>' +
+                        '<td><span class="tag ' + pos.state + '">' + pos.state + '</span></td>' +
+                        '<td>' + entry + '</td>' +
+                        '<td>' + strike + '</td>' +
+                        '<td class="sub">' + date + '</td>' +
+                        '</tr>';
+                }
+            } catch(e) {
+                document.getElementById('serviceStatus').textContent = 'OFFLINE';
+                document.getElementById('serviceStatus').className = 'badge off';
+            }
+            bar.style.width = '100%';
+            setTimeout(function() { bar.style.width = '0%'; }, 300);
+        }
+        updateDashboard();
+        setInterval(updateDashboard, 5000);
+    </script>
+</body>
+</html>
