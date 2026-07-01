@@ -9,8 +9,8 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { getDb, closeDb } from './db';
-import { getRecentPredictions, getPredictionStats } from './research-agent';
-import { getOracleAuditReport, getDeviationHistory } from './oracle-auditor';
+import { logPrediction, updatePredictionStatus, logSettlement, getRecentPredictions, getPredictionStats } from './research-agent';
+import { logOracleSnapshot, getOracleAuditReport, getDeviationHistory } from './oracle-auditor';
 import { getMetricSummary, getHourlyMetrics, exportMetricsJson } from './metrics-collector';
 
 const app = express();
@@ -41,6 +41,46 @@ app.get('/api/predictions', (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const predictions = getRecentPredictions(limit);
     res.json(predictions);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Log a new prediction from the trading engine
+app.post('/api/predictions', (req, res) => {
+  try {
+    const id = logPrediction(req.body);
+    res.json({ id });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update prediction status (confirmed/failed)
+app.patch('/api/predictions/:id', (req, res) => {
+  try {
+    updatePredictionStatus(parseInt(req.params.id), req.body.status, req.body.txDigest);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Log a settlement
+app.post('/api/settlements', (req, res) => {
+  try {
+    logSettlement(req.body);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Log oracle snapshot
+app.post('/api/oracles/snapshot', (req, res) => {
+  try {
+    logOracleSnapshot(req.body);
+    res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
