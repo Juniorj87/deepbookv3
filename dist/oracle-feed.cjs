@@ -30972,17 +30972,10 @@ async function runUnifiedService() {
         const remaining = expiry - Date.now();
         const remainingHours = remaining / 36e5;
         console.log(`[MONITOR] ${asset}: ${remainingHours.toFixed(2)}h remaining`);
-        if (remainingHours < 0.5) {
+        if (remainingHours < 2) {
           await alertSystem.notify({
-            severity: "CRITICAL" /* CRITICAL */,
-            message: `${asset} Oracle expiring in ${remainingHours.toFixed(2)}h!`,
-            oracleId: id,
-            market: asset
-          });
-        } else if (remainingHours < 2) {
-          await alertSystem.notify({
-            severity: "WARNING" /* WARNING */,
-            message: `${asset} Oracle near expiry. Auto-rotation triggered.`,
+            severity: remainingHours < 0 ? "CRITICAL" : "WARNING",
+            message: `${asset} Oracle ${remainingHours < 0 ? 'EXPIRED' : 'expiring'}: ${remainingHours.toFixed(2)}h. Auto-rotating...`,
             oracleId: id,
             market: asset
           });
