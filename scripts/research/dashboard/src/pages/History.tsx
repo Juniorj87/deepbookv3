@@ -8,6 +8,7 @@ interface Prediction {
   direction: string;
   strike: number;
   confidence: number;
+  score: number | null;
   explanation: string | null;
   tx_digest: string | null;
   status: string;
