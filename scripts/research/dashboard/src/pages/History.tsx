@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { apiFetch, MOCK } from '../api';
 
 interface Prediction {
   id: number;
@@ -20,8 +21,7 @@ export default function History() {
   const [limit, setLimit] = useState(200);
 
   const fetchData = useCallback(async () => {
-    const res = await fetch(`/api/predictions?limit=${limit}`);
-    const data = await res.json();
+    const data = await apiFetch<Prediction[]>(`/api/predictions?limit=${limit}`, MOCK.predictions);
     setPredictions(data);
   }, [limit]);
 
@@ -102,7 +102,6 @@ export default function History() {
         </div>
       </div>
 
-      {/* Detail panel */}
       {selected && (
         <div className="card" style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { apiFetch, MOCK } from '../api';
 
 interface OracleReport {
   oracle_id: string;
@@ -26,8 +27,7 @@ export default function Oracles() {
   const [hours, setHours] = useState(24);
 
   const fetchData = useCallback(async () => {
-    const res = await fetch(`/api/oracles?hours=${hours}`);
-    const data = await res.json();
+    const data = await apiFetch<OracleReport[]>(`/api/oracles?hours=${hours}`, MOCK.oracles);
     setReport(data);
   }, [hours]);
 
@@ -39,8 +39,7 @@ export default function Oracles() {
 
   useEffect(() => {
     if (selectedOracle) {
-      fetch(`/api/oracles/${selectedOracle}/history?limit=200`)
-        .then(r => r.json())
+      apiFetch<DeviationPoint[]>(`/api/oracles/${selectedOracle}/history?limit=200`, MOCK.deviationHistory)
         .then(setHistory);
     }
   }, [selectedOracle]);
@@ -151,7 +150,6 @@ export default function Oracles() {
             </LineChart>
           </ResponsiveContainer>
 
-          {/* Deviation stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginTop: 16, fontSize: 13 }}>
             <div>
               <div className="stat-label">Samples</div>

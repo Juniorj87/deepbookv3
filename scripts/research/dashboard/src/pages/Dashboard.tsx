@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { apiFetch, MOCK } from '../api';
 
 interface Balances {
   wallet: { deep: number; usdc: number; sui: number };
@@ -33,23 +33,19 @@ interface HealthStatus {
   memoryMB: number;
 }
 
-const COLORS = ['#6c5ce7', '#00b894', '#e17055', '#fdcb6e', '#74b9ff'];
-
 export default function Dashboard() {
   const [live, setLive] = useState<LiveMetrics | null>(null);
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const fetchData = useCallback(async () => {
-    try {
-      const [liveRes, healthRes] = await Promise.all([
-        fetch('/api/live').then(r => r.json()),
-        fetch('/api/health').then(r => r.json()),
-      ]);
-      setLive(liveRes);
-      setHealth(healthRes);
-      setLastRefresh(new Date());
-    } catch {}
+    const [liveRes, healthRes] = await Promise.all([
+      apiFetch<LiveMetrics>('/api/live', MOCK.live),
+      apiFetch<HealthStatus>('/api/health', MOCK.health),
+    ]);
+    setLive(liveRes);
+    setHealth(healthRes);
+    setLastRefresh(new Date());
   }, []);
 
   useEffect(() => {
@@ -73,60 +69,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Balances Section */}
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-title">Account Balances</div>
         <div className="grid grid-4">
-          <BalanceCard
-            label="Wallet"
-            deep={balances.wallet.deep}
-            usdc={balances.wallet.usdc}
-            sui={balances.wallet.sui}
-            icon=" Wallet"
-          />
-          <BalanceCard
-            label="Staked (Open)"
-            deep={balances.staked.deep}
-            positions={balances.staked.positions}
-            usd={balances.staked.usd}
-            icon="📈"
-            color="var(--blue)"
-          />
-          <BalanceCard
-            label="Earned (Claimed)"
-            deep={balances.earned.deep}
-            positions={balances.earned.positions}
-            usd={balances.earned.usd}
-            icon="✅"
-            color="var(--green)"
-          />
-          <BalanceCard
-            label="Pending (Settled)"
-            deep={balances.pending.deep}
-            positions={balances.pending.positions}
-            usd={balances.pending.usd}
-            icon="⏳"
-            color="var(--yellow)"
-          />
+          <BalanceCard label="Wallet" deep={balances.wallet.deep} usdc={balances.wallet.usdc} sui={balances.wallet.sui} icon="Wallet" />
+          <BalanceCard label="Staked (Open)" deep={balances.staked.deep} positions={balances.staked.positions} usd={balances.staked.usd} icon="📈" color="var(--blue)" />
+          <BalanceCard label="Earned (Claimed)" deep={balances.earned.deep} positions={balances.earned.positions} usd={balances.earned.usd} icon="✅" color="var(--green)" />
+          <BalanceCard label="Pending (Settled)" deep={balances.pending.deep} positions={balances.pending.positions} usd={balances.pending.usd} icon="⏳" color="var(--yellow)" />
         </div>
         <div style={{ marginTop: 12, padding: '12px 16px', background: 'var(--bg-primary)', borderRadius: 8, display: 'flex', justifyContent: 'space-between' }}>
           <div>
             <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Total Portfolio Value</span>
-            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)' }}>
-              ${balances.total.usd.toLocaleString()}
-            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)' }}>${balances.total.usd.toLocaleString()}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Total DEEP</span>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>
-              {balances.total.deep.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{balances.total.deep.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
             <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>DEEP @ ${balances.deepPrice}</span>
           </div>
         </div>
       </div>
 
-      {/* Stats Row */}
       <div className="grid grid-4">
         <Card title="Total Positions" value={positions.total} sub={`${positions.open} open | ${positions.claimed} claimed`} />
         <Card title="Win Rate" value={positions.winRate + '%'} sub={`${positions.winners}W / ${positions.failed}L`} color="var(--green)" />
@@ -134,14 +97,12 @@ export default function Dashboard() {
         <Card title="Oracle" value={oracleRemaining.toFixed(1) + 'h'} sub={`Cycle #${live.dashboard.cycle}`} color={oracleRemaining < 1 ? 'var(--red)' : 'var(--yellow)'} />
       </div>
 
-      {/* Session + Rewards */}
       <div className="grid grid-3" style={{ marginTop: 16 }}>
         <Card title="Last 24h" value={session.last24h.total} sub={`${session.last24h.claimed} claimed | ${session.last24h.failed} failed`} />
         <Card title="Last 1h" value={session.last1h.total} sub={`${session.last1h.claimed} claimed | ${session.last1h.failed} failed`} />
         <Card title="Total Rewards" value={positions.totalPnl > 0 ? (positions.totalPnl / 1e6).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '0'} sub={`${positions.claimed} claimed positions`} color="var(--green)" />
       </div>
 
-      {/* Market + Signals */}
       <div className="grid grid-2" style={{ marginTop: 16 }}>
         <div className="card">
           <div className="card-title">Positions by Market</div>
@@ -179,7 +140,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* System Health */}
       <div className="card" style={{ marginTop: 16 }}>
         <div className="card-title">System Health</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, fontSize: 13 }}>

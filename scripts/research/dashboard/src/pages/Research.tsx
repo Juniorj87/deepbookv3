@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { apiFetch, MOCK } from '../api';
 
 interface Prediction {
   id: number;
@@ -26,8 +27,7 @@ export default function Research() {
   const [filter, setFilter] = useState('all');
 
   const fetchData = useCallback(async () => {
-    const res = await fetch(`/api/predictions?limit=${limit}`);
-    const data = await res.json();
+    const data = await apiFetch<Prediction[]>(`/api/predictions?limit=${limit}`, MOCK.predictions);
     setPredictions(data);
   }, [limit]);
 

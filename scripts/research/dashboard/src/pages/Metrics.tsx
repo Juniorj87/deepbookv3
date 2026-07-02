@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+import { apiFetch, MOCK } from '../api';
 
 interface LiveMetrics {
   positions: {
@@ -35,8 +36,8 @@ export default function Metrics() {
 
   const fetchData = useCallback(async () => {
     const [liveRes, tlRes] = await Promise.all([
-      fetch('/api/live').then(r => r.json()),
-      fetch(`/api/wincrate/timeline?hours=${timelineHours}`).then(r => r.json()),
+      apiFetch<LiveMetrics>('/api/live', MOCK.live),
+      apiFetch<WinRatePoint[]>(`/api/wincrate/timeline?hours=${timelineHours}`, MOCK.timeline),
     ]);
     setLive(liveRes);
     setTimeline(tlRes);
@@ -57,11 +58,10 @@ export default function Metrics() {
     { name: 'Failed', value: positions.failed },
   ].filter(d => d.value > 0);
 
-  // Process timeline for chart
   const hours = [...new Set(timeline.map(t => t.hour))].sort();
   const markets = [...new Set(timeline.map(t => t.market))];
   const chartData = hours.map(h => {
-    const point: Record<string, any> = { hour: h.slice(11, 16) };
+    const point: Record<string, string | number> = { hour: h.slice(11, 16) };
     for (const m of markets) {
       const entry = timeline.find(t => t.hour === h && t.market === m);
       if (entry) {
@@ -76,7 +76,6 @@ export default function Metrics() {
     <div>
       <h1 className="page-title">Metrics</h1>
 
-      {/* Overview cards */}
       <div className="grid grid-4">
         <div className="card">
           <div className="card-title">Win Rate</div>
@@ -103,7 +102,6 @@ export default function Metrics() {
       </div>
 
       <div className="grid grid-2" style={{ marginTop: 16 }}>
-        {/* Win rate by market */}
         <div className="card">
           <div className="card-title">Outcomes</div>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -135,7 +133,6 @@ export default function Metrics() {
           </div>
         </div>
 
-        {/* Win rate by market - bar */}
         <div className="card">
           <div className="card-title">Positions by Market</div>
           <ResponsiveContainer width="100%" height={200}>
@@ -155,7 +152,6 @@ export default function Metrics() {
         </div>
       </div>
 
-      {/* Win rate timeline */}
       <div className="card" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div className="card-title" style={{ marginBottom: 0 }}>Win Rate Timeline</div>

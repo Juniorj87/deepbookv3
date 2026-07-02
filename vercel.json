@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "buildCommand": "cd scripts/research/dashboard && npm install && npm run build",
+  "outputDirectory": "scripts/research/dashboard/dist",
+  "installCommand": "npm install --prefix scripts/research/dashboard"
+}
