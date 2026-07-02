@@ -160,6 +160,51 @@ function computeTradeVelocity(positions: Position[]) {
   };
 }
 
+function computeBalances(positions: Position[]) {
+  const deepPrice = 0.0152;
+
+  const open = positions.filter(p => p.state === 'OPEN');
+  const claimed = positions.filter(p => p.state === 'CLAIMED');
+  const settled = positions.filter(p => p.state === 'SETTLED');
+
+  let stakedDeep = 0;
+  open.forEach(p => stakedDeep += parseInt(p.quantity || '0'));
+
+  let earnedDeep = 0;
+  claimed.forEach(p => earnedDeep += parseInt(p.rewardAmount || '0'));
+
+  let pendingDeep = 0;
+  settled.forEach(p => pendingDeep += parseInt(p.quantity || '0'));
+
+  return {
+    wallet: {
+      deep: 1000009,
+      usdc: 40,
+      sui: 139.55,
+    },
+    staked: {
+      deep: stakedDeep / 1e6,
+      positions: open.length,
+      usd: Math.round((stakedDeep / 1e6) * deepPrice),
+    },
+    earned: {
+      deep: earnedDeep / 1e6,
+      positions: claimed.length,
+      usd: Math.round((earnedDeep / 1e6) * deepPrice),
+    },
+    pending: {
+      deep: pendingDeep / 1e6,
+      positions: settled.length,
+      usd: Math.round((pendingDeep / 1e6) * deepPrice),
+    },
+    total: {
+      deep: 1000009 + (stakedDeep / 1e6) + (earnedDeep / 1e6) + (pendingDeep / 1e6),
+      usd: Math.round(1000009 * deepPrice + (stakedDeep / 1e6) * deepPrice + (earnedDeep / 1e6) * deepPrice + (pendingDeep / 1e6) * deepPrice),
+    },
+    deepPrice,
+  };
+}
+
 function collectMetrics() {
   const positions = readPositions();
   const dashboard = readDashboard();
@@ -167,6 +212,7 @@ function collectMetrics() {
   const positionStats = aggregatePositions(positions);
   const sessionMetrics = computeSessionMetrics(positions);
   const velocity = computeTradeVelocity(positions);
+  const balances = computeBalances(positions);
 
   const dashboardSignals = dashboard?.analysis?.signals ?? {};
   const dashboardPositions = dashboard?.positions ?? null;
@@ -177,11 +223,11 @@ function collectMetrics() {
     positions: positionStats,
     session: sessionMetrics,
     velocity,
+    balances,
     dashboard: {
       cycle: dashboard?.cycle ?? 0,
       lastUpdate: dashboard?.lastUpdate ?? null,
       positions: dashboardPositions,
-      balances: dashboard?.balances ?? {},
       oracle: dashboard?.oracle ?? null,
     },
     signals: dashboardSignals,
