@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 const links = [
+  { to: '/trade', label: 'Trade', icon: '🎯' },
   { to: '/', label: 'Dashboard', icon: '📊' },
   { to: '/research', label: 'Research', icon: '🧠' },
   { to: '/oracles', label: 'Oracle Audit', icon: '👁' },
@@ -13,7 +14,7 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <h1>DeepBook Research</h1>
+          <h1>DeepSearch</h1>
           <span>Predict Analytics Platform</span>
         </div>
         <nav>
