@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const links = [
   { to: '/trade', label: 'Trade', icon: '🎯' },
+  { to: '/spot', label: 'Spot (official)', icon: '🔄' },
   { to: '/', label: 'Dashboard', icon: '📊' },
   { to: '/research', label: 'Research', icon: '🧠' },
   { to: '/oracles', label: 'Oracle Audit', icon: '👁' },

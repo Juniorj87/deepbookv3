@@ -11,6 +11,7 @@ import Oracles from './pages/Oracles';
 import Metrics from './pages/Metrics';
 import History from './pages/History';
 import Trade from './pages/Trade';
+import Spot from './pages/Spot';
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/" element={<App />}>
                 <Route index element={<Dashboard />} />
                 <Route path="trade" element={<Trade />} />
+                <Route path="spot" element={<Spot />} />
                 <Route path="research" element={<Research />} />
                 <Route path="oracles" element={<Oracles />} />
                 <Route path="metrics" element={<Metrics />} />
